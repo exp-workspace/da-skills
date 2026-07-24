@@ -511,3 +511,32 @@ nerve-center-app .nc-preview-btn {
     padding: var(--spacing-300, 16px);
   }
 }
+
+/* --- Trend Identifier: search / filters / sort / pills / detail (org-scoped rework) --- */
+.nc-toolbar { display: flex; align-items: center; gap: 8px; margin: 8px 0 10px; }
+.nc-search { flex: 1; }
+.nc-search input { width: 100%; box-sizing: border-box; height: 34px; padding: 0 10px; border: 1px solid #d3d1c7; border-radius: 6px; font-size: 14px; }
+.nc-filter-toggle { height: 34px; padding: 0 12px; border: 1px solid #b4b2a9; border-radius: 6px; background: transparent; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.nc-filter-toggle.is-open { background: #f1efe8; }
+.nc-filter-count { background: #185fa5; color: #fff; border-radius: 999px; font-size: 11px; font-weight: 600; padding: 0 6px; }
+.nc-controls { border: 1px solid #e6e4dc; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+.nc-control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nc-control-label { font-size: 12px; color: #6b6a64; width: 48px; }
+.nc-chip { padding: 4px 11px; font-size: 12px; font-weight: 500; border-radius: 999px; border: 1px solid #d3d1c7; background: #fff; color: #5f5e5a; cursor: pointer; }
+.nc-chip.is-active { background: #e6f1fb; border-color: #85b7eb; color: #0c447c; }
+.nc-count { font-size: 12px; color: #888780; margin: 0 0 8px; }
+.obs-clickable { cursor: pointer; }
+.obs-sub { font-size: 12px; color: #888780; margin: 2px 0 6px; }
+.obs-detail { border-top: 1px solid #e6e4dc; margin-top: 10px; padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.obs-detail p { margin: 0; font-size: 13px; color: #444441; line-height: 1.55; }
+.obs-detail-label { text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; color: #888780; margin-bottom: 3px !important; }
+.obs-terms { display: flex; gap: 6px; flex-wrap: wrap; }
+.nc-term { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #f1efe8; }
+.obs-source { font-size: 13px; color: #185fa5; }
+.drafts-list { margin: 4px 0 8px; padding-left: 18px; }
+.nc-pill { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; margin-right: 6px; }
+.nc-pill--tier-critical, .nc-pill--rec-act, .nc-pill--impact-threat { background: #fdecec; color: #a3272d; }
+.nc-pill--tier-high, .nc-pill--rec-watch { background: #faeeda; color: #7a4a0b; }
+.nc-pill--tier-medium { background: #e6f1fb; color: #0c447c; }
+.nc-pill--tier-low, .nc-pill--rec-ignore { background: #f1efe8; color: #5f5e5a; }
+.nc-pill--impact-opportunity, .nc-pill--corr { background: #eaf3de; color: #27500a; }
