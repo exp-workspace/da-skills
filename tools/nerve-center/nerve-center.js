@@ -77,8 +77,9 @@ class NerveCenterApp extends LitElement {
     // Non-reactive
     this._apiBase = DEFAULT_API_BASE_URL;
     this._actions = null;
-    this._org = null;
-    this._site = null;
+    this._org = null; // DA project org (slug), used for drafts
+    this._site = null; // DA project repo (slug), used for drafts
+    this._orgId = null; // NC organization id, resolved from the token via /api/me
     this._draftsStarted = false;
   }
 
@@ -139,13 +140,30 @@ class NerveCenterApp extends LitElement {
     if (this._token) this._fetchObservations();
   }
 
+  // Resolve (and cache) the caller's NC organization from the IMS token.
+  // The backend resolves the token to exactly one org and returns it on /api/me.
+  async _resolveOrgId() {
+    if (this._orgId) return this._orgId;
+    const resp = await fetch(`${this._apiBase}/api/me`, {
+      headers: { Authorization: `Bearer ${this._token}` },
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const { data } = await resp.json();
+    if (!data?.orgId) {
+      throw new Error('No organization is associated with this account.');
+    }
+    this._orgId = data.orgId;
+    return this._orgId;
+  }
+
   async _fetchObservations() {
     if (!this._token) return;
     this._loading = true;
     this._error = null;
     try {
-      // Org-implicit endpoint: the customer is derived from the IMS token server-side.
-      const resp = await fetch(`${this._apiBase}/api/observations?pageSize=50`, {
+      // Discover the org once via /api/me, then use the org-scoped observations endpoint.
+      const orgId = await this._resolveOrgId();
+      const resp = await fetch(`${this._apiBase}/api/orgs/${orgId}/observations?pageSize=50`, {
         headers: { Authorization: `Bearer ${this._token}` },
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
