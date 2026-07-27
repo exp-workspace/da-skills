@@ -3,7 +3,8 @@ nerve-center-app {
   --ew-accent-hover: var(--s2-blue-1000);
 
   display: block;
-  margin: 10px;
+  max-width: 760px;
+  margin: 10px auto;
   padding: 0 6px;
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
@@ -62,6 +63,7 @@ nerve-center-app .app-title {
 }
 
 nerve-center-app .card {
+  padding: var(--spacing-300, 16px);
   border-radius: var(--s2-radius-200, 10px);
   box-shadow: 0 1px 6px 0 rgb(0 0 0 / 12%);
 }
@@ -122,6 +124,84 @@ nerve-center-app .obs-meta {
   flex-wrap: wrap;
   gap: var(--spacing-75, 6px);
   margin-bottom: var(--spacing-200, 12px);
+  /* leave room for the top-right acted / dismiss buttons */
+  padding-right: 66px;
+}
+
+nerve-center-app .observation-item {
+  position: relative;
+}
+
+nerve-center-app .obs-outcome-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: flex;
+  gap: 6px;
+}
+
+nerve-center-app .obs-outcome-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--s2-gray-300, #ccc);
+  background: #fff;
+  color: var(--s2-gray-500, #999);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+nerve-center-app .obs-outcome-btn .nc-check,
+nerve-center-app .obs-outcome-btn .nc-close {
+  width: 15px;
+  height: 15px;
+}
+
+nerve-center-app .obs-outcome-btn--acted:hover {
+  border-color: var(--s2-green-600, #16a34a);
+  color: var(--s2-green-700, #15803d);
+  background: var(--s2-green-50, #f0fdf4);
+}
+
+nerve-center-app .obs-outcome-btn--dismiss:hover {
+  border-color: var(--s2-gray-500, #999);
+  color: var(--s2-gray-800, #444);
+  background: var(--s2-gray-100, #f3f4f6);
+}
+
+nerve-center-app .obs-expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px 0 0;
+  border: none;
+  background: transparent;
+  color: var(--s2-gray-400, #aaa);
+  cursor: pointer;
+}
+
+nerve-center-app .obs-expand-toggle:hover {
+  color: var(--s2-gray-700, #555);
+}
+
+nerve-center-app .obs-expand-toggle .nc-chevron {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s ease;
+}
+
+nerve-center-app .observation-item.is-open .obs-expand-toggle .nc-chevron {
+  transform: rotate(180deg);
 }
 
 nerve-center-app .badge {
@@ -285,8 +365,40 @@ nerve-center-app .draft-link:hover {
   text-decoration: underline;
 }
 
-nerve-center-app .obs-chat-btn {
-  width: 100%;
+nerve-center-app .obs-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+nerve-center-app .obs-generate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--ew-accent);
+  background: transparent;
+  border: 1px solid var(--s2-gray-300, #ccc);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+nerve-center-app .obs-generate-btn:hover {
+  background: var(--s2-blue-100, #eff6ff);
+  border-color: var(--ew-accent);
+}
+
+nerve-center-app .obs-generate-btn .nc-sparkle {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 nerve-center-app .obs-header-actions {
@@ -366,21 +478,36 @@ nerve-center-app .obs-check {
 }
 
 nerve-center-app .obs-complete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 99px;
-  border: 1px solid var(--s2-gray-400, #aaa);
+  font-family: inherit;
+  padding: 5px 12px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--s2-gray-300, #ccc);
   background: transparent;
   color: var(--s2-gray-600, #767676);
   cursor: pointer;
   white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+nerve-center-app .obs-complete-btn .nc-check {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 nerve-center-app .obs-complete-btn:hover {
-  border-color: var(--s2-gray-600, #767676);
-  color: var(--s2-gray-900, #1a1a1a);
+  border-color: var(--s2-green-600, #16a34a);
+  color: var(--s2-green-700, #15803d);
+  background: var(--s2-green-50, #f0fdf4);
 }
 
 nerve-center-app .obs-complete-btn--done {
@@ -444,18 +571,74 @@ nerve-center-app .obs-metric-value {
   text-align: right;
 }
 
-nerve-center-app .completed-label {
+nerve-center-app .outcome-label {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--s2-green-700, #15803d);
   margin: var(--spacing-300, 16px) 0 var(--spacing-75, 6px);
 }
 
-nerve-center-app .observation-item.obs-completed {
+nerve-center-app .outcome-label--acted {
+  color: var(--s2-green-700, #15803d);
+}
+
+nerve-center-app .outcome-label--dismissed {
+  color: var(--s2-gray-500, #999);
+}
+
+nerve-center-app .observation-item.obs-resolved--acted {
   background: var(--s2-green-50, #f0fdf4);
   border-color: var(--s2-green-300, #86efac);
+}
+
+nerve-center-app .observation-item.obs-resolved--dismissed {
+  background: var(--s2-gray-75, #f3f3f3);
+  border-color: var(--s2-gray-300, #ccc);
+}
+
+nerve-center-app .obs-mark {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+nerve-center-app .obs-mark .nc-check,
+nerve-center-app .obs-mark .nc-close {
+  width: 15px;
+  height: 15px;
+}
+
+nerve-center-app .obs-mark--acted {
+  color: var(--s2-green-700, #15803d);
+}
+
+nerve-center-app .obs-mark--dismissed {
+  color: var(--s2-gray-500, #999);
+}
+
+nerve-center-app .obs-undo-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--s2-gray-300, #ccc);
+  background: transparent;
+  color: var(--s2-gray-600, #767676);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+nerve-center-app .obs-undo-btn:hover {
+  border-color: var(--s2-gray-600, #767676);
+  color: var(--s2-gray-900, #1a1a1a);
+  background: var(--s2-gray-100, #f3f4f6);
 }
 
 sl-button.ew-outline-accent {
@@ -506,12 +689,6 @@ nerve-center-app .nc-preview-btn {
   transform: translateX(-50%) translateY(0);
 }
 
-@media (width <= 600px) {
-  nerve-center-app .card {
-    padding: var(--spacing-300, 16px);
-  }
-}
-
 /* --- Trend Identifier: search / filters / sort / pills / detail (org-scoped rework) --- */
 .nc-toolbar { display: flex; align-items: center; gap: 8px; margin: 8px 0 10px; }
 .nc-search { flex: 1; }
@@ -527,6 +704,51 @@ nerve-center-app .nc-preview-btn {
 .nc-count { font-size: 12px; color: #888780; margin: 0 0 8px; }
 .obs-clickable { cursor: pointer; }
 .obs-sub { font-size: 12px; color: #888780; margin: 2px 0 6px; }
+
+/* Detection-source chips — provenance shown prominently in the collapsed card. */
+nerve-center-app .obs-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+nerve-center-app .nc-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--s2-gray-200, #e0e0e0);
+  color: var(--s2-gray-700, #555);
+}
+
+nerve-center-app .nc-source-chip::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--s2-gray-400, #aaa);
+}
+
+nerve-center-app .nc-source-chip--google-trends::before {
+  background: #4285f4;
+}
+
+nerve-center-app .nc-source-chip--news::before {
+  background: #d97706;
+}
+
+nerve-center-app .nc-source-chip--reddit::before {
+  background: #ff4500;
+}
+
+nerve-center-app .nc-source-chip--youtube::before {
+  background: #ff0000;
+}
 .obs-detail { border-top: 1px solid #e6e4dc; margin-top: 10px; padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
 .obs-detail p { margin: 0; font-size: 13px; color: #444441; line-height: 1.55; }
 .obs-detail-label { text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; color: #888780; margin-bottom: 3px !important; }

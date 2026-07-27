@@ -9,6 +9,49 @@ const DA_CANVAS = 'https://da.live/canvas';
 const REC_FILTERS = ['all', 'act', 'watch', 'ignore'];
 const SORTS = ['severity', 'recent', 'title'];
 
+// AI "sparkle / stardust" glyph — a large 4-point star with a small companion.
+const sparkleIcon = () => html`
+  <svg class="nc-sparkle" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 2c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6Z" />
+    <path d="M18.5 13c.2 1.9 1.1 2.8 3 3-1.9.2-2.8 1.1-3 3-.2-1.9-1.1-2.8-3-3 1.9-.2 2.8-1.1 3-3Z" />
+  </svg>
+`;
+
+// Plain checkmark for the "mark done" affordance.
+const checkIcon = () => html`
+  <svg class="nc-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M5 13l4 4L19 7" />
+  </svg>
+`;
+
+// Down chevron for the expand/collapse affordance (rotates 180° when open).
+const chevronIcon = () => html`
+  <svg class="nc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+`;
+
+// Cross for the "dismiss / not relevant" affordance.
+const closeIcon = () => html`
+  <svg class="nc-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+`;
+
+// Human-readable labels for detection sources; unknown values are title-cased.
+const SOURCE_LABELS = {
+  google_trends: 'Google Trends',
+  news: 'News',
+  reddit: 'Reddit',
+  youtube: 'YouTube',
+};
+const sourceLabel = (s) =>
+  SOURCE_LABELS[s] || String(s).replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const sourceKey = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
 function severityTier(sev) {
   if (sev == null) return null;
   if (sev >= 80) return 'Critical';
@@ -46,6 +89,96 @@ function normalize(o) {
   };
 }
 
+// TEMP: hardcoded sample observations for local UI work when no NC backend is
+// available. Enabled only with `?mock` on the URL. Shape mirrors the raw API
+// response items (pre-normalize). Remove once the backend flow is wired up.
+const MOCK_OBSERVATIONS = [
+  {
+    observationId: 'mock-1',
+    id: 'evt-mock-1',
+    title: 'Search interest surges for "AI-assisted authoring"',
+    summary: 'Cross-source spike in search and news mentions over the last week for AI authoring tools.',
+    subject: 'AI Authoring',
+    brandName: 'Acme',
+    boostedSeverity: 92,
+    recommendation: 'act',
+    impact: 'opportunity',
+    corroborated: true,
+    matchStatus: 'confirmed',
+    sources: ['google_trends', 'news'],
+    trackingTerms: ['AI authoring', 'content automation'],
+    businessImpact: 'Rising demand signals a chance to capture net-new organic traffic.',
+    recommendedAction: 'Publish a comparison page and a getting-started guide.',
+    rationale: 'Tracks "AI authoring" via self tracking. See [coverage](https://example.com/article).',
+    authoritativeSource: { url: 'https://news.acme.com/2026/07/ai-authoring', publication: 'news.acme.com' },
+    lastDetectedOn: '2026-07-24',
+    status: 'active',
+  },
+  {
+    observationId: 'mock-2',
+    id: 'evt-mock-2',
+    title: 'Competitor launches free tier',
+    summary: 'A direct competitor announced a free tier; coverage expanding across major publishers.',
+    subject: 'Pricing',
+    brandName: 'Acme',
+    boostedSeverity: 74,
+    recommendation: 'watch',
+    impact: 'threat',
+    corroborated: true,
+    matchStatus: 'confirmed',
+    sources: ['news'],
+    trackingTerms: ['free tier', 'pricing'],
+    businessImpact: 'Potential churn pressure on price-sensitive segments.',
+    recommendedAction: 'Sharpen value-prop messaging on pricing pages.',
+    rationale: 'Detected via news grounding.',
+    authoritativeSource: null,
+    lastDetectedOn: '2026-07-22',
+    status: 'active',
+  },
+  {
+    observationId: 'mock-3',
+    id: 'evt-mock-3',
+    title: 'Seasonal dip in "template gallery" queries',
+    summary: 'Search interest for template galleries is trending down heading into summer.',
+    subject: 'Templates',
+    brandName: 'Northwind',
+    latestSeverity: 38,
+    recommendation: 'ignore',
+    impact: 'neutral',
+    corroborated: false,
+    matchStatus: 'candidate',
+    sources: ['google_trends'],
+    trackingTerms: ['templates'],
+    businessImpact: '',
+    recommendedAction: '',
+    rationale: 'Single-source, uncorroborated candidate.',
+    authoritativeSource: null,
+    lastDetectedOn: '2026-07-19',
+    status: 'active',
+  },
+  {
+    observationId: 'mock-4',
+    id: 'evt-mock-4',
+    title: 'Spike in enterprise SSO interest',
+    summary: 'Growing search + forum discussion around enterprise SSO and SAML setup.',
+    subject: 'Enterprise SSO',
+    brandName: 'Acme',
+    boostedSeverity: 61,
+    recommendation: 'act',
+    impact: 'opportunity',
+    corroborated: true,
+    matchStatus: 'confirmed',
+    sources: ['google_trends', 'news'],
+    trackingTerms: ['SSO', 'SAML', 'enterprise'],
+    businessImpact: 'Enterprise buyers actively researching — strong mid-funnel signal.',
+    recommendedAction: 'Add an SSO setup guide and an enterprise landing page.',
+    rationale: 'Corroborated across trends and news.',
+    authoritativeSource: { url: 'https://example.com/sso', title: 'SSO explained', publication: 'example.com' },
+    lastDetectedOn: '2026-07-25',
+    status: 'active',
+  },
+];
+
 class NerveCenterApp extends LitElement {
   static properties = {
     _token: { state: true },
@@ -53,7 +186,7 @@ class NerveCenterApp extends LitElement {
     _loading: { state: true },
     _error: { state: true },
     _drafts: { state: true },
-    _completed: { state: true },
+    _outcomes: { state: true },
     _rec: { state: true },
     _sort: { state: true },
     _q: { state: true },
@@ -68,7 +201,7 @@ class NerveCenterApp extends LitElement {
     this._loading = false;
     this._error = null;
     this._drafts = {};
-    this._completed = new Set();
+    this._outcomes = {}; // { [obsId]: 'acted' | 'dismissed' }
     this._rec = 'all';
     this._sort = 'severity';
     this._q = '';
@@ -91,8 +224,14 @@ class NerveCenterApp extends LitElement {
     super.connectedCallback();
     this._onAgentChange = (e) => {
       if (e.data?.type === 'nx-completed-obs') {
+        // Content was generated for these observations → they've been acted on.
         const matched = (e.data.ids ?? []).filter((id) => this._observations.some((o) => o.id === id));
-        if (matched.length) this._completed = new Set([...this._completed, ...matched]);
+        if (matched.length) {
+          const next = { ...this._outcomes };
+          for (const id of matched) next[id] = 'acted';
+          this._outcomes = next;
+          this._persistOutcomes();
+        }
         return;
       }
       if (e.data?.action !== 'agentChange') return;
@@ -121,10 +260,19 @@ class NerveCenterApp extends LitElement {
     if (apiOverride) this._apiBase = apiOverride.replace(/\/$/, '');
 
     try {
-      const stored = sessionStorage.getItem('nc-completed');
-      if (stored) this._completed = new Set(JSON.parse(stored));
+      const stored = sessionStorage.getItem('nc-outcomes');
+      if (stored) this._outcomes = JSON.parse(stored) || {};
     } catch {
       /* ignore */
+    }
+
+    // TEMP: `?mock` loads hardcoded observations and skips the DA SDK + NC
+    // backend entirely, so the UI can be worked on without a live backend.
+    if (params.has('mock')) {
+      this._token = 'mock';
+      this._observations = MOCK_OBSERVATIONS.map(normalize);
+      this._loading = false;
+      return;
     }
 
     try {
@@ -244,13 +392,26 @@ class NerveCenterApp extends LitElement {
     }, 2500);
   }
 
-  _toggleComplete(obsId) {
-    const next = new Set(this._completed);
-    if (next.has(obsId)) next.delete(obsId);
-    else next.add(obsId);
-    this._completed = next;
+  // Record the user's outcome for an observation ('acted' | 'dismissed').
+  // Clicking the same outcome again clears it (toggle off).
+  _setOutcome(obsId, outcome) {
+    const next = { ...this._outcomes };
+    if (next[obsId] === outcome) delete next[obsId];
+    else next[obsId] = outcome;
+    this._outcomes = next;
+    this._persistOutcomes();
+  }
+
+  _clearOutcome(obsId) {
+    const next = { ...this._outcomes };
+    delete next[obsId];
+    this._outcomes = next;
+    this._persistOutcomes();
+  }
+
+  _persistOutcomes() {
     try {
-      sessionStorage.setItem('nc-completed', JSON.stringify([...next]));
+      sessionStorage.setItem('nc-outcomes', JSON.stringify(this._outcomes));
     } catch {
       /* ignore */
     }
@@ -305,16 +466,18 @@ class NerveCenterApp extends LitElement {
     const drafts = this._drafts[o.id];
     if (drafts?.loading || (drafts && drafts.items.length > 0)) return nothing;
     return html`
-      <sl-button
-        class="ew-fill-accent obs-chat-btn"
+      <button
+        type="button"
+        class="obs-generate-btn"
         @click=${() => {
           window.parent.postMessage({ type: 'nx-open-chat' }, '*');
           const prompt = this._buildPrompt(o);
           if (this._actions?.setPrompt) this._actions.setPrompt(prompt, { autoSend: true });
           else navigator.clipboard?.writeText(prompt).then(() => this._toast('Prompt copied to clipboard'));
         }}
-        >Generate content</sl-button
-      >`;
+      >
+        ${sparkleIcon()} Generate content
+      </button>`;
   }
 
   _pill(text, kind) {
@@ -324,7 +487,7 @@ class NerveCenterApp extends LitElement {
   _visibleObservations() {
     const q = this._q.trim().toLowerCase();
     let rows = this._observations
-      .filter((o) => !this._completed.has(o.id))
+      .filter((o) => !this._outcomes[o.id])
       .filter((o) => this._rec === 'all' || o.recommendation === this._rec)
       .filter((o) => !q || `${o.title} ${o.summary} ${o.subject} ${o.brandName}`.toLowerCase().includes(q));
     if (this._sort === 'severity') rows = rows.sort((a, b) => (b.severity ?? -1) - (a.severity ?? -1));
@@ -396,6 +559,32 @@ class NerveCenterApp extends LitElement {
     const open = this._expanded.has(o.id);
     return html`
       <div class="card observation-item ${open ? 'is-open' : ''}">
+        <div class="obs-outcome-actions">
+          <button
+            type="button"
+            class="obs-outcome-btn obs-outcome-btn--acted"
+            title="Acted — I took action on this"
+            aria-label="Mark as acted"
+            @click=${(e) => {
+              e.stopPropagation();
+              this._setOutcome(o.id, 'acted');
+            }}
+          >
+            ${checkIcon()}
+          </button>
+          <button
+            type="button"
+            class="obs-outcome-btn obs-outcome-btn--dismiss"
+            title="Dismiss — not relevant"
+            aria-label="Dismiss"
+            @click=${(e) => {
+              e.stopPropagation();
+              this._setOutcome(o.id, 'dismissed');
+            }}
+          >
+            ${closeIcon()}
+          </button>
+        </div>
         <div class="obs-clickable" @click=${() => this._toggleExpanded(o.id)}>
           <div class="obs-meta">
             ${o.tier ? this._pill(`${o.severity} · ${o.tier}`, `tier-${o.tier.toLowerCase()}`) : nothing}
@@ -404,7 +593,14 @@ class NerveCenterApp extends LitElement {
             ${o.corroborated ? this._pill('Corroborated', 'corr') : nothing}
           </div>
           <p class="obs-name">${o.title}</p>
-          <p class="obs-sub">${[o.subject, o.brandName, o.sources.join(', ')].filter(Boolean).join(' · ')}</p>
+          <p class="obs-sub">${[o.subject, o.brandName].filter(Boolean).join(' · ')}</p>
+          ${o.sources.length
+            ? html`<div class="obs-sources">
+                ${o.sources.map(
+                  (s) => html`<span class="nc-source-chip nc-source-chip--${sourceKey(s)}">${sourceLabel(s)}</span>`
+                )}
+              </div>`
+            : nothing}
           ${o.summary ? html`<p class="obs-description">${this._renderWithLinks(o.summary)}</p>` : nothing}
         </div>
         ${open
@@ -419,11 +615,20 @@ class NerveCenterApp extends LitElement {
                       >${o.authoritativeSource.publication || o.authoritativeSource.title || 'Source'} ↗</a
                     >`
                   : nothing}
-                ${this._renderDrafts(o.id)} ${this._renderGenerateButton(o)}
-                <button class="obs-complete-btn" @click=${() => this._toggleComplete(o.id)}>Mark done</button>
+                ${this._renderDrafts(o.id)}
+                <div class="obs-actions">${this._renderGenerateButton(o)}</div>
               </div>
             `
           : nothing}
+        <button
+          type="button"
+          class="obs-expand-toggle"
+          aria-expanded=${open}
+          aria-label=${open ? 'Show less' : 'Show details'}
+          @click=${() => this._toggleExpanded(o.id)}
+        >
+          ${chevronIcon()}
+        </button>
       </div>
     `;
   }
@@ -449,25 +654,36 @@ class NerveCenterApp extends LitElement {
       return html`<div class="card"><p>No trends for your organization yet.</p></div>`;
     }
     const rows = this._visibleObservations();
-    const done = this._observations.filter((o) => this._completed.has(o.id));
+    const acted = this._observations.filter((o) => this._outcomes[o.id] === 'acted');
+    const dismissed = this._observations.filter((o) => this._outcomes[o.id] === 'dismissed');
     return html`
       ${this._renderToolbar()}
       <p class="nc-count">${rows.length} of ${this._observations.length}</p>
       ${rows.length
         ? rows.map((o) => this._renderCard(o))
         : html`<div class="card"><p>No matching trends.</p></div>`}
-      ${done.length
-        ? html`<p class="completed-label">Completed</p>
-            ${done.map(
-              (o) => html`<div class="card observation-item obs-completed">
-                <div class="obs-header">
-                  <p class="obs-name"><span class="obs-check">✓</span>${o.title}</p>
-                  <button class="obs-complete-btn obs-complete-btn--done" @click=${() => this._toggleComplete(o.id)}>Undo</button>
-                </div>
-              </div>`
-            )}`
+      ${acted.length
+        ? html`<p class="outcome-label outcome-label--acted">Acted</p>
+            ${acted.map((o) => this._renderResolvedCard(o, 'acted'))}`
+        : nothing}
+      ${dismissed.length
+        ? html`<p class="outcome-label outcome-label--dismissed">Dismissed</p>
+            ${dismissed.map((o) => this._renderResolvedCard(o, 'dismissed'))}`
         : nothing}
     `;
+  }
+
+  _renderResolvedCard(o, kind) {
+    const cardClass = kind === 'acted' ? 'obs-resolved--acted' : 'obs-resolved--dismissed';
+    return html`
+      <div class="card observation-item obs-resolved ${cardClass}">
+        <div class="obs-header">
+          <p class="obs-name">
+            <span class="obs-mark obs-mark--${kind}">${kind === 'acted' ? checkIcon() : closeIcon()}</span>${o.title}
+          </p>
+          <button class="obs-undo-btn" @click=${() => this._clearOutcome(o.id)}>Undo</button>
+        </div>
+      </div>`;
   }
 
   render() {
