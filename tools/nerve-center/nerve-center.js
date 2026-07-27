@@ -8,6 +8,20 @@ const DA_CANVAS = 'https://da.live/canvas';
 
 const REC_FILTERS = ['all', 'act', 'watch', 'ignore'];
 const SORTS = ['severity', 'recent', 'title'];
+const PAGE_SIZE = 50;
+
+// Origins allowed to postMessage into this app. The tool runs in a DA-hosted
+// iframe, so trusted messages come from the DA host (da.live) or, in local dev,
+// a localhost DA. Anything else is ignored.
+function isTrustedMessageOrigin(origin) {
+  if (origin === 'https://da.live') return true;
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+}
 
 // AI "sparkle / stardust" glyph — a large 4-point star with a small companion.
 const sparkleIcon = () => html`
@@ -66,7 +80,6 @@ function normalize(o) {
   const sev = o.boostedSeverity ?? o.latestSeverity ?? null;
   return {
     id: o.observationId ?? o.id,
-    eventId: o.id,
     title: o.title ?? '',
     summary: o.summary ?? '',
     description: o.description ?? '',
@@ -183,6 +196,8 @@ class NerveCenterApp extends LitElement {
   static properties = {
     _token: { state: true },
     _observations: { state: true },
+    _total: { state: true },
+    _loadingMore: { state: true },
     _loading: { state: true },
     _error: { state: true },
     _drafts: { state: true },
@@ -198,6 +213,8 @@ class NerveCenterApp extends LitElement {
     super();
     this._token = null;
     this._observations = [];
+    this._total = 0;
+    this._loadingMore = false;
     this._loading = false;
     this._error = null;
     this._drafts = {};
@@ -213,6 +230,7 @@ class NerveCenterApp extends LitElement {
     this._org = null; // DA project org (slug), used for drafts
     this._site = null; // DA project repo (slug), used for drafts
     this._orgId = null; // NC organization id, resolved from the token via /api/me
+    this._page = 1; // last-loaded observations page (for "Load more")
     this._draftsStarted = false;
   }
 
@@ -223,6 +241,7 @@ class NerveCenterApp extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this._onAgentChange = (e) => {
+      if (!isTrustedMessageOrigin(e.origin)) return;
       if (e.data?.type === 'nx-completed-obs') {
         // Content was generated for these observations → they've been acted on.
         const matched = (e.data.ids ?? []).filter((id) => this._observations.some((o) => o.id === id));
@@ -271,6 +290,7 @@ class NerveCenterApp extends LitElement {
     if (params.has('mock')) {
       this._token = 'mock';
       this._observations = MOCK_OBSERVATIONS.map(normalize);
+      this._total = this._observations.length;
       this._loading = false;
       return;
     }
@@ -304,24 +324,54 @@ class NerveCenterApp extends LitElement {
     return this._orgId;
   }
 
+  // Fetch a single page of observations from the org-scoped endpoint.
+  async _fetchPage(page) {
+    const orgId = await this._resolveOrgId();
+    const resp = await fetch(
+      `${this._apiBase}/api/orgs/${orgId}/observations?page=${page}&pageSize=${PAGE_SIZE}`,
+      { headers: { Authorization: `Bearer ${this._token}` } }
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const { data } = await resp.json();
+    return {
+      observations: (data.observations ?? []).map(normalize),
+      total: data.total ?? (data.observations ?? []).length,
+    };
+  }
+
   async _fetchObservations() {
     if (!this._token) return;
     this._loading = true;
     this._error = null;
     try {
       // Discover the org once via /api/me, then use the org-scoped observations endpoint.
-      const orgId = await this._resolveOrgId();
-      const resp = await fetch(`${this._apiBase}/api/orgs/${orgId}/observations?pageSize=50`, {
-        headers: { Authorization: `Bearer ${this._token}` },
-      });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const { data } = await resp.json();
-      this._observations = (data.observations ?? []).map(normalize);
+      const { observations, total } = await this._fetchPage(1);
+      this._observations = observations;
+      this._total = total;
+      this._page = 1;
       this._checkFetchDrafts();
     } catch (err) {
       this._error = err.message;
     } finally {
       this._loading = false;
+    }
+  }
+
+  // Append the next page. The backend reports `total`, so we can keep loading
+  // until every observation is reachable rather than silently capping at PAGE_SIZE.
+  async _loadMore() {
+    if (this._loadingMore || this._observations.length >= this._total) return;
+    this._loadingMore = true;
+    try {
+      const { observations, total } = await this._fetchPage(this._page + 1);
+      this._observations = [...this._observations, ...observations];
+      this._total = total;
+      this._page += 1;
+      this._checkFetchDrafts();
+    } catch (err) {
+      this._error = err.message;
+    } finally {
+      this._loadingMore = false;
     }
   }
 
@@ -487,6 +537,10 @@ class NerveCenterApp extends LitElement {
   _visibleObservations() {
     const q = this._q.trim().toLowerCase();
     let rows = this._observations
+      // Only vetted observations reach customers. The org endpoint already defaults
+      // to matchStatus=confirmed server-side; this is a defensive guard so unvetted
+      // rows (e.g. mock candidates) never render if the contract ever changes.
+      .filter((o) => o.matchStatus === 'confirmed')
       .filter((o) => !this._outcomes[o.id])
       .filter((o) => this._rec === 'all' || o.recommendation === this._rec)
       .filter((o) => !q || `${o.title} ${o.summary} ${o.subject} ${o.brandName}`.toLowerCase().includes(q));
@@ -590,10 +644,9 @@ class NerveCenterApp extends LitElement {
             ${o.tier ? this._pill(`${o.severity} · ${o.tier}`, `tier-${o.tier.toLowerCase()}`) : nothing}
             ${o.recommendation ? this._pill(o.recommendation[0].toUpperCase() + o.recommendation.slice(1), `rec-${o.recommendation}`) : nothing}
             ${o.impact ? this._pill(o.impact[0].toUpperCase() + o.impact.slice(1), `impact-${o.impact}`) : nothing}
-            ${o.corroborated ? this._pill('Corroborated', 'corr') : nothing}
           </div>
+          ${o.brandName ? html`<p class="obs-brand">${o.brandName}</p>` : nothing}
           <p class="obs-name">${o.title}</p>
-          <p class="obs-sub">${[o.subject, o.brandName].filter(Boolean).join(' · ')}</p>
           ${o.sources.length
             ? html`<div class="obs-sources">
                 ${o.sources.map(
@@ -612,7 +665,9 @@ class NerveCenterApp extends LitElement {
                 ${o.trackingTerms.length ? html`<p class="obs-terms">${o.trackingTerms.map((t) => html`<span class="nc-term">${t}</span>`)}</p>` : nothing}
                 ${o.authoritativeSource?.url
                   ? html`<a class="obs-source" href=${o.authoritativeSource.url} target="_blank" rel="noopener noreferrer"
-                      >${o.authoritativeSource.publication || o.authoritativeSource.title || 'Source'} ↗</a
+                      >Primary source: ${o.authoritativeSource.publication ||
+                      o.authoritativeSource.title ||
+                      o.authoritativeSource.url}</a
                     >`
                   : nothing}
                 ${this._renderDrafts(o.id)}
@@ -656,12 +711,24 @@ class NerveCenterApp extends LitElement {
     const rows = this._visibleObservations();
     const acted = this._observations.filter((o) => this._outcomes[o.id] === 'acted');
     const dismissed = this._observations.filter((o) => this._outcomes[o.id] === 'dismissed');
+    const moreToLoad = this._observations.length < this._total;
     return html`
       ${this._renderToolbar()}
-      <p class="nc-count">${rows.length} of ${this._observations.length}</p>
+      <p class="nc-count">${rows.length} of ${this._total}</p>
       ${rows.length
         ? rows.map((o) => this._renderCard(o))
         : html`<div class="card"><p>No matching trends.</p></div>`}
+      ${moreToLoad
+        ? html`<button
+            class="nc-load-more"
+            ?disabled=${this._loadingMore}
+            @click=${() => this._loadMore()}
+          >
+            ${this._loadingMore
+              ? 'Loading…'
+              : `Load more (${this._total - this._observations.length} more)`}
+          </button>`
+        : nothing}
       ${acted.length
         ? html`<p class="outcome-label outcome-label--acted">Acted</p>
             ${acted.map((o) => this._renderResolvedCard(o, 'acted'))}`
