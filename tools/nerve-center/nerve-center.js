@@ -242,17 +242,8 @@ class NerveCenterApp extends LitElement {
     super.connectedCallback();
     this._onAgentChange = (e) => {
       if (!isTrustedMessageOrigin(e.origin)) return;
-      if (e.data?.type === 'nx-completed-obs') {
-        // Content was generated for these observations → they've been acted on.
-        const matched = (e.data.ids ?? []).filter((id) => this._observations.some((o) => o.id === id));
-        if (matched.length) {
-          const next = { ...this._outcomes };
-          for (const id of matched) next[id] = 'acted';
-          this._outcomes = next;
-          this._persistOutcomes();
-        }
-        return;
-      }
+      // The host only pushes `agentChange` to the iframe; completion is a manual
+      // outcome via the "Mark as acted" control, not a host-emitted signal.
       if (e.data?.action !== 'agentChange') return;
       const { detail } = e.data;
       if (detail?.scope !== 'file') return;
@@ -485,6 +476,21 @@ class NerveCenterApp extends LitElement {
     return base.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
+  // Hand off the drafts to the drafts-preview tool, then ask the host to open it.
+  // The receiver reads localStorage['da-drafts-preview'] on mount; showPanel routes
+  // through the host (PANEL_EVENT.OPEN) — a raw window.postMessage never reaches it.
+  _openDraftsPreview(items) {
+    try {
+      localStorage.setItem(
+        'da-drafts-preview',
+        JSON.stringify({ items, org: this._org, site: this._site }),
+      );
+    } catch {
+      /* ignore quota/serialization errors */
+    }
+    this._actions?.showPanel?.('drafts-preview');
+  }
+
   _renderDrafts(obsId) {
     const entry = this._drafts[obsId];
     if (!entry) return nothing;
@@ -502,11 +508,7 @@ class NerveCenterApp extends LitElement {
         </ul>
         <sl-button
           class="ew-outline-accent nc-preview-btn"
-          @click=${() =>
-            window.parent.postMessage(
-              { type: 'nx-show-draft-preview', obsId, items: entry.items, org: this._org, site: this._site },
-              '*'
-            )}
+          @click=${() => this._openDraftsPreview(entry.items)}
           >Compare drafts</sl-button
         >
       </div>`;
@@ -520,8 +522,9 @@ class NerveCenterApp extends LitElement {
         type="button"
         class="obs-generate-btn"
         @click=${() => {
-          window.parent.postMessage({ type: 'nx-open-chat' }, '*');
           const prompt = this._buildPrompt(o);
+          // setPrompt opens the chat panel host-side and sets the prompt (relayed to
+          // nx-open-chat-panel), so no separate open-chat message is needed.
           if (this._actions?.setPrompt) this._actions.setPrompt(prompt, { autoSend: true });
           else navigator.clipboard?.writeText(prompt).then(() => this._toast('Prompt copied to clipboard'));
         }}
