@@ -1,49 +1,159 @@
 import DA_SDK from 'https://da.live/nx/utils/sdk.js';
 import { LitElement, html, nothing } from 'da-lit';
 
-const API_BASE_URL = 'https://d31bkz463thsuv.cloudfront.net';
+// NC API origin. Defaults to prod; override for local dev with ?nerve-center-api=http://localhost:3001
+const DEFAULT_API_BASE_URL = 'https://d31bkz463thsuv.cloudfront.net';
 const DA_ADMIN = 'https://admin.da.live';
 const DA_CANVAS = 'https://da.live/canvas';
+
+const REC_FILTERS = ['all', 'act', 'watch', 'ignore'];
+const SORTS = ['severity', 'recent', 'title'];
+const PAGE_SIZE = 50;
+
+// Origins allowed to postMessage into this app. The tool runs in a DA-hosted
+// iframe, so trusted messages come from the DA host (da.live) or, in local dev,
+// a localhost DA. Anything else is ignored.
+function isTrustedMessageOrigin(origin) {
+  if (origin === 'https://da.live') return true;
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+}
+
+// AI "sparkle / stardust" glyph — a large 4-point star with a small companion.
+const sparkleIcon = () => html`
+  <svg class="nc-sparkle" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 2c.4 3.9 2.1 5.6 6 6-3.9.4-5.6 2.1-6 6-.4-3.9-2.1-5.6-6-6 3.9-.4 5.6-2.1 6-6Z" />
+    <path d="M18.5 13c.2 1.9 1.1 2.8 3 3-1.9.2-2.8 1.1-3 3-.2-1.9-1.1-2.8-3-3 1.9-.2 2.8-1.1 3-3Z" />
+  </svg>
+`;
+
+// Plain checkmark for the "mark done" affordance.
+const checkIcon = () => html`
+  <svg class="nc-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M5 13l4 4L19 7" />
+  </svg>
+`;
+
+// Down chevron for the expand/collapse affordance (rotates 180° when open).
+const chevronIcon = () => html`
+  <svg class="nc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+`;
+
+// Cross for the "dismiss / not relevant" affordance.
+const closeIcon = () => html`
+  <svg class="nc-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+`;
+
+// Human-readable labels for detection sources; unknown values are title-cased.
+const SOURCE_LABELS = {
+  google_trends: 'Google Trends',
+  news: 'News',
+  reddit: 'Reddit',
+  youtube: 'YouTube',
+};
+const sourceLabel = (s) =>
+  SOURCE_LABELS[s] || String(s).replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const sourceKey = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+function severityTier(sev) {
+  if (sev == null) return null;
+  if (sev >= 80) return 'Critical';
+  if (sev >= 60) return 'High';
+  if (sev >= 40) return 'Medium';
+  return 'Low';
+}
+
+// Normalize an API observation into the shape the UI renders. `id` is the observation id
+// (used for drafts keying); severity folds in the corroboration boost.
+function normalize(o) {
+  const sev = o.boostedSeverity ?? o.latestSeverity ?? null;
+  return {
+    id: o.observationId ?? o.id,
+    title: o.title ?? '',
+    summary: o.summary ?? '',
+    description: o.description ?? '',
+    subject: o.subject ?? '',
+    brandName: o.brandName ?? '',
+    severity: sev,
+    tier: severityTier(sev),
+    recommendation: (o.recommendation ?? '').toLowerCase() || null,
+    impact: (o.impact ?? '').toLowerCase() || null,
+    corroborated: !!o.corroborated,
+    matchStatus: o.matchStatus ?? null,
+    sources: Array.isArray(o.sources) ? o.sources : [],
+    trackingTerms: Array.isArray(o.trackingTerms) ? o.trackingTerms : [],
+    businessImpact: o.businessImpact ?? '',
+    recommendedAction: o.recommendedAction ?? '',
+    rationale: o.rationale ?? '',
+    authoritativeSource: o.authoritativeSource ?? null,
+    lastDetectedOn: o.lastDetectedOn ?? null,
+    status: o.status ?? null,
+  };
+}
 
 class NerveCenterApp extends LitElement {
   static properties = {
     _token: { state: true },
-    _siteId: { state: true },
-    _apiKey: { state: true },
     _observations: { state: true },
+    _total: { state: true },
+    _loadingMore: { state: true },
     _loading: { state: true },
     _error: { state: true },
     _drafts: { state: true },
-    _completed: { state: true },
+    _outcomes: { state: true },
+    _rec: { state: true },
+    _sort: { state: true },
+    _q: { state: true },
+    _showFilters: { state: true },
+    _expanded: { state: true },
   };
 
   constructor() {
     super();
     this._token = null;
-    this._siteId = null;
-    this._apiKey = null;
     this._observations = [];
+    this._total = 0;
+    this._loadingMore = false;
     this._loading = false;
     this._error = null;
     this._drafts = {};
-    this._completed = new Set();
-    // Non-reactive — don't trigger re-renders
+    this._outcomes = {}; // { [obsId]: 'acted' | 'dismissed' }
+    this._rec = 'all';
+    this._sort = 'severity';
+    this._q = '';
+    this._showFilters = false;
+    this._expanded = new Set();
+    // Non-reactive
+    this._apiBase = DEFAULT_API_BASE_URL;
     this._actions = null;
-    this._org = null;
-    this._site = null;
+    this._org = null; // DA project org (slug), used for drafts
+    this._site = null; // DA project repo (slug), used for drafts
+    this._orgId = null; // NC organization id, resolved from the token via /api/me
+    this._page = 1; // last-loaded observations page (for "Load more")
     this._draftsStarted = false;
   }
 
-  createRenderRoot() { return this; }
+  createRenderRoot() {
+    return this;
+  }
 
   connectedCallback() {
     super.connectedCallback();
     this._onAgentChange = (e) => {
-      if (e.data?.type === 'nx-completed-obs') {
-        const matched = (e.data.ids ?? []).filter((id) => this._observations.some((obs) => obs.id === id));
-        if (matched.length) this._completed = new Set([...this._completed, ...matched]);
-        return;
-      }
+      if (!isTrustedMessageOrigin(e.origin)) return;
+      // The host only pushes `agentChange` to the iframe; completion is a manual
+      // outcome via the "Mark as acted" control, not a host-emitted signal.
       if (e.data?.action !== 'agentChange') return;
       const { detail } = e.data;
       if (detail?.scope !== 'file') return;
@@ -52,9 +162,7 @@ class NerveCenterApp extends LitElement {
         const idx = p.indexOf(prefix);
         if (idx === -1) continue;
         const obsId = p.slice(idx + prefix.length).split('/')[0];
-        if (obsId && this._observations.some((obs) => obs.id === obsId)) {
-          this._fetchDrafts(obsId);
-        }
+        if (obsId && this._observations.some((o) => o.id === obsId)) this._fetchDrafts(obsId);
       }
     };
     window.addEventListener('message', this._onAgentChange);
@@ -68,21 +176,14 @@ class NerveCenterApp extends LitElement {
 
   async _init() {
     const params = new URLSearchParams(window.location.search);
-    this._siteId = params.get('nerve-center-site-id');
-    this._apiKey = params.get('nerve-center-key');
+    const apiOverride = params.get('nerve-center-api');
+    if (apiOverride) this._apiBase = apiOverride.replace(/\/$/, '');
 
-    const completedParam = params.get('nerve-center-completed');
-    if (completedParam) {
-      this._completed = new Set(completedParam.split(',').map((id) => id.trim()).filter(Boolean));
-    } else {
-      try {
-        const stored = sessionStorage.getItem('nc-completed');
-        if (stored) this._completed = new Set(JSON.parse(stored));
-      } catch { /* ignore */ }
-    }
-
-    if (this._siteId && this._apiKey) {
-      this._fetchObservations();
+    try {
+      const stored = sessionStorage.getItem('nc-outcomes');
+      if (stored) this._outcomes = JSON.parse(stored) || {};
+    } catch {
+      /* ignore */
     }
 
     try {
@@ -91,23 +192,54 @@ class NerveCenterApp extends LitElement {
       this._actions = actions;
       this._org = project?.org;
       this._site = project?.repo;
-      this._checkFetchDrafts();
     } catch {
       // SDK unavailable in standalone/dev
     }
+
+    if (this._token) this._fetchObservations();
+  }
+
+  // Resolve (and cache) the caller's NC organization from the IMS token.
+  // The backend resolves the token to exactly one org and returns it on /api/me.
+  async _resolveOrgId() {
+    if (this._orgId) return this._orgId;
+    const resp = await fetch(`${this._apiBase}/api/me`, {
+      headers: { Authorization: `Bearer ${this._token}` },
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const { data } = await resp.json();
+    if (!data?.orgId) {
+      throw new Error('No organization is associated with this account.');
+    }
+    this._orgId = data.orgId;
+    return this._orgId;
+  }
+
+  // Fetch a single page of observations from the org-scoped endpoint.
+  async _fetchPage(page) {
+    const orgId = await this._resolveOrgId();
+    const resp = await fetch(
+      `${this._apiBase}/api/orgs/${orgId}/observations?page=${page}&pageSize=${PAGE_SIZE}`,
+      { headers: { Authorization: `Bearer ${this._token}` } }
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const { data } = await resp.json();
+    return {
+      observations: (data.observations ?? []).map(normalize),
+      total: data.total ?? (data.observations ?? []).length,
+    };
   }
 
   async _fetchObservations() {
+    if (!this._token) return;
     this._loading = true;
     this._error = null;
-
     try {
-      const resp = await fetch(`${API_BASE_URL}/api/sites/${this._siteId}/observations?pageSize=3`, {
-        headers: { Authorization: `Bearer ${this._apiKey}` },
-      });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const { data } = await resp.json();
-      this._observations = data.items?.slice(0, 3) ?? [];
+      // Discover the org once via /api/me, then use the org-scoped observations endpoint.
+      const { observations, total } = await this._fetchPage(1);
+      this._observations = observations;
+      this._total = total;
+      this._page = 1;
       this._checkFetchDrafts();
     } catch (err) {
       this._error = err.message;
@@ -116,10 +248,28 @@ class NerveCenterApp extends LitElement {
     }
   }
 
+  // Append the next page. The backend reports `total`, so we can keep loading
+  // until every observation is reachable rather than silently capping at PAGE_SIZE.
+  async _loadMore() {
+    if (this._loadingMore || this._observations.length >= this._total) return;
+    this._loadingMore = true;
+    try {
+      const { observations, total } = await this._fetchPage(this._page + 1);
+      this._observations = [...this._observations, ...observations];
+      this._total = total;
+      this._page += 1;
+      this._checkFetchDrafts();
+    } catch (err) {
+      this._error = err.message;
+    } finally {
+      this._loadingMore = false;
+    }
+  }
+
   _checkFetchDrafts() {
     if (this._actions && this._org && this._site && this._observations.length > 0 && !this._draftsStarted) {
       this._draftsStarted = true;
-      Promise.all(this._observations.map((obs) => this._fetchDrafts(obs.id)));
+      Promise.all(this._observations.map((o) => this._fetchDrafts(o.id)));
     }
   }
 
@@ -140,40 +290,20 @@ class NerveCenterApp extends LitElement {
     }
   }
 
-  _buildPrompt(obs) {
+  _buildPrompt(o) {
     const lines = [
-      `Observation: ${obs.name}`,
-      obs.description ? `Description: ${obs.description}` : null,
-      obs.summary ? `Summary: ${obs.summary}` : null,
-      obs.classification ? `Classification: ${obs.classification}` : null,
-      Number.isFinite(obs.confidence) ? `Confidence: ${(obs.confidence * 100).toFixed(0)}%` : null,
-      obs.recommendedAction ? `Recommended action: ${obs.recommendedAction}` : null,
-      obs.recommendedActionRationale ? `Rationale: ${obs.recommendedActionRationale}` : null,
-      obs.businessImpact ? `Business impact: ${obs.businessImpact}` : null,
+      `Observation: ${o.title}`,
+      o.summary ? `Summary: ${o.summary}` : null,
+      o.impact ? `Impact: ${o.impact}` : null,
+      o.recommendation ? `Recommendation: ${o.recommendation}` : null,
+      o.recommendedAction ? `Recommended action: ${o.recommendedAction}` : null,
+      o.businessImpact ? `Business impact: ${o.businessImpact}` : null,
     ].filter(Boolean);
-
     return [
       lines.join('\n'),
       '',
       'Based on this observation, generate three pages that can help drive traffic or conversions on our website.',
-      `Create 3 different variations of content based on the observation at /drafts/nerve-center/${obs.id}/`,
-    ].join('\n');
-  }
-
-  _buildPublishPrompt(obs, draftItems) {
-    const variantList = draftItems
-      .map((item, i) => `${i + 1}. ${item.name} (${item.path})`)
-      .join('\n');
-
-    return [
-      `I have ${draftItems.length} content variant${draftItems.length > 1 ? 's' : ''} in drafts for the observation "${obs.name}":`,
-      '',
-      variantList,
-      '',
-      'Please ask me which variant I prefer, then:',
-      '1. Move the chosen page out of the drafts folder to an appropriate location on the site',
-      '2. Preview the page',
-      `3. Ask me if I want to clean up the remaining draft pages under /drafts/nerve-center/${obs.id}/`,
+      `Create 3 different variations of content based on the observation at /drafts/nerve-center/${o.id}/`,
     ].join('\n');
   }
 
@@ -203,21 +333,40 @@ class NerveCenterApp extends LitElement {
     }, 2500);
   }
 
-  _toggleComplete(obsId) {
-    const next = new Set(this._completed);
+  // Record the user's outcome for an observation ('acted' | 'dismissed').
+  // Clicking the same outcome again clears it (toggle off).
+  _setOutcome(obsId, outcome) {
+    const next = { ...this._outcomes };
+    if (next[obsId] === outcome) delete next[obsId];
+    else next[obsId] = outcome;
+    this._outcomes = next;
+    this._persistOutcomes();
+  }
+
+  _clearOutcome(obsId) {
+    const next = { ...this._outcomes };
+    delete next[obsId];
+    this._outcomes = next;
+    this._persistOutcomes();
+  }
+
+  _persistOutcomes() {
+    try {
+      sessionStorage.setItem('nc-outcomes', JSON.stringify(this._outcomes));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  _toggleExpanded(obsId) {
+    const next = new Set(this._expanded);
     if (next.has(obsId)) next.delete(obsId);
     else next.add(obsId);
-    this._completed = next;
-    try {
-      sessionStorage.setItem('nc-completed', JSON.stringify([...next]));
-    } catch { /* ignore */ }
+    this._expanded = next;
   }
 
   _canvasUrl(item) {
-    // item.path is like /org/site/drafts/... — strip leading slash and extension
-    const hash = item.ext
-      ? item.path.slice(1, -(item.ext.length + 1))
-      : item.path.replace(/^\//, '');
+    const hash = item.ext ? item.path.slice(1, -(item.ext.length + 1)) : item.path.replace(/^\//, '');
     return `${DA_CANVAS}#/${hash}`;
   }
 
@@ -227,10 +376,19 @@ class NerveCenterApp extends LitElement {
     return base.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  _assignedRole(item) {
-    const roles = ['Technical Writer', 'Editor', 'Product Marketing', 'Brand Marketing'];
-    const hash = item.path.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    return roles[hash % roles.length];
+  // Hand off the drafts to the drafts-preview tool, then ask the host to open it.
+  // The receiver reads localStorage['da-drafts-preview'] on mount; showPanel routes
+  // through the host (PANEL_EVENT.OPEN) — a raw window.postMessage never reaches it.
+  _openDraftsPreview(items) {
+    try {
+      localStorage.setItem(
+        'da-drafts-preview',
+        JSON.stringify({ items, org: this._org, site: this._site }),
+      );
+    } catch {
+      /* ignore quota/serialization errors */
+    }
+    this._actions?.showPanel?.('drafts-preview');
   }
 
   _renderDrafts(obsId) {
@@ -238,156 +396,269 @@ class NerveCenterApp extends LitElement {
     if (!entry) return nothing;
     if (entry.loading) return html`<p class="drafts-loading">Loading drafts…</p>`;
     if (entry.items.length === 0) return nothing;
-
     return html`
       <div class="drafts">
-        <table class="drafts-table">
-          <thead>
-            <tr>
-              <th>Draft Page</th>
-              <th>Assign to</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${entry.items.map((item) => html`
-              <tr>
-                <td>
-                  <a class="draft-link" href=${this._canvasUrl(item)} target="_blank">
-                    ${this._draftName(item)}
-                  </a>
-                </td>
-                <td>
-                  <span class="draft-role">${this._assignedRole(item)}</span>
-                </td>
-              </tr>
-            `)}
-          </tbody>
-        </table>
-        <sl-button class="ew-outline-accent nc-preview-btn" @click=${() => {
-        window.parent.postMessage({ type: 'nx-show-draft-preview', obsId, items: entry.items, org: this._org, site: this._site }, '*');
-      }}>Compare drafts</sl-button>
+        <p class="obs-detail-label">Draft content</p>
+        <ul class="drafts-list">
+          ${entry.items.map(
+            (item) => html`<li>
+              <a class="draft-link" href=${this._canvasUrl(item)} target="_blank">${this._draftName(item)}</a>
+            </li>`
+          )}
+        </ul>
+        <sl-button
+          class="ew-outline-accent nc-preview-btn"
+          @click=${() => this._openDraftsPreview(entry.items)}
+          >Compare drafts</sl-button
+        >
       </div>`;
   }
 
-
-  _renderButton(obs) {
-    if (obs.status?.toLowerCase() === 'draft') return nothing;
-    const drafts = this._drafts[obs.id];
-    if (!drafts || drafts.loading) return nothing;
-    const hasDrafts = drafts.items.length > 0;
-    if (hasDrafts) { return nothing; }
-    const label = hasDrafts ? 'Start Publish Workflow' : 'Generate content from observation';
-    const prompt = hasDrafts
-      ? this._buildPublishPrompt(obs, drafts.items)
-      : this._buildPrompt(obs);
-
+  _renderGenerateButton(o) {
+    const drafts = this._drafts[o.id];
+    if (drafts?.loading || (drafts && drafts.items.length > 0)) return nothing;
     return html`
-      <sl-button class="ew-fill-accent obs-chat-btn" @click=${() => {
-        window.parent.postMessage({ type: 'nx-open-chat' }, '*');
-        if (this._actions?.setPrompt) {
-          this._actions.setPrompt(prompt, { autoSend: true });
-        } else {
-          navigator.clipboard?.writeText(prompt).then(() => this._toast('Prompt copied to clipboard'));
-        }
-      }}>${label}</sl-button>`;
+      <button
+        type="button"
+        class="obs-generate-btn"
+        @click=${() => {
+          const prompt = this._buildPrompt(o);
+          // setPrompt opens the chat panel host-side and sets the prompt (relayed to
+          // nx-open-chat-panel), so no separate open-chat message is needed.
+          if (this._actions?.setPrompt) this._actions.setPrompt(prompt, { autoSend: true });
+          else navigator.clipboard?.writeText(prompt).then(() => this._toast('Prompt copied to clipboard'));
+        }}
+      >
+        ${sparkleIcon()} Generate content
+      </button>`;
+  }
+
+  _pill(text, kind) {
+    return html`<span class="nc-pill nc-pill--${kind}">${text}</span>`;
+  }
+
+  _visibleObservations() {
+    const q = this._q.trim().toLowerCase();
+    let rows = this._observations
+      // Only vetted observations reach customers. The org endpoint already defaults
+      // to matchStatus=confirmed server-side; this is a defensive guard so unvetted
+      // rows (e.g. uncorroborated candidates) never render if the contract ever changes.
+      .filter((o) => o.matchStatus === 'confirmed')
+      .filter((o) => !this._outcomes[o.id])
+      .filter((o) => this._rec === 'all' || o.recommendation === this._rec)
+      .filter((o) => !q || `${o.title} ${o.summary} ${o.subject} ${o.brandName}`.toLowerCase().includes(q));
+    if (this._sort === 'severity') rows = rows.sort((a, b) => (b.severity ?? -1) - (a.severity ?? -1));
+    else if (this._sort === 'recent') rows = rows.sort((a, b) => String(b.lastDetectedOn).localeCompare(String(a.lastDetectedOn)));
+    else rows = rows.sort((a, b) => a.title.localeCompare(b.title));
+    return rows;
+  }
+
+  _renderToolbar() {
+    const activeFilters = (this._rec !== 'all' ? 1 : 0) + (this._q ? 1 : 0);
+    return html`
+      <div class="nc-toolbar">
+        <div class="nc-search">
+          <input
+            type="search"
+            placeholder="Search trends"
+            .value=${this._q}
+            @input=${(e) => {
+              this._q = e.target.value;
+            }}
+          />
+        </div>
+        <button
+          class="nc-filter-toggle ${this._showFilters ? 'is-open' : ''}"
+          aria-label="Show filters and sorting"
+          @click=${() => {
+            this._showFilters = !this._showFilters;
+          }}
+        >
+          Filters${activeFilters ? html` <span class="nc-filter-count">${activeFilters}</span>` : nothing}
+        </button>
+      </div>
+      ${this._showFilters
+        ? html`
+            <div class="nc-controls">
+              <div class="nc-control-row">
+                <span class="nc-control-label">Show</span>
+                ${REC_FILTERS.map(
+                  (r) => html`<button
+                    class="nc-chip ${this._rec === r ? 'is-active' : ''}"
+                    @click=${() => {
+                      this._rec = r;
+                    }}
+                  >
+                    ${r === 'all' ? 'All' : r[0].toUpperCase() + r.slice(1)}
+                  </button>`
+                )}
+              </div>
+              <div class="nc-control-row">
+                <span class="nc-control-label">Sort</span>
+                ${SORTS.map(
+                  (s) => html`<button
+                    class="nc-chip ${this._sort === s ? 'is-active' : ''}"
+                    @click=${() => {
+                      this._sort = s;
+                    }}
+                  >
+                    ${s === 'severity' ? 'Severity' : s === 'recent' ? 'Most recent' : 'A–Z'}
+                  </button>`
+                )}
+              </div>
+            </div>
+          `
+        : nothing}
+    `;
+  }
+
+  _renderCard(o) {
+    const open = this._expanded.has(o.id);
+    return html`
+      <div class="card observation-item ${open ? 'is-open' : ''}">
+        <div class="obs-outcome-actions">
+          <button
+            type="button"
+            class="obs-outcome-btn obs-outcome-btn--acted"
+            title="Acted — I took action on this"
+            aria-label="Mark as acted"
+            @click=${(e) => {
+              e.stopPropagation();
+              this._setOutcome(o.id, 'acted');
+            }}
+          >
+            ${checkIcon()}
+          </button>
+          <button
+            type="button"
+            class="obs-outcome-btn obs-outcome-btn--dismiss"
+            title="Dismiss — not relevant"
+            aria-label="Dismiss"
+            @click=${(e) => {
+              e.stopPropagation();
+              this._setOutcome(o.id, 'dismissed');
+            }}
+          >
+            ${closeIcon()}
+          </button>
+        </div>
+        <div class="obs-clickable" @click=${() => this._toggleExpanded(o.id)}>
+          <div class="obs-meta">
+            ${o.tier ? this._pill(`${o.severity} · ${o.tier}`, `tier-${o.tier.toLowerCase()}`) : nothing}
+            ${o.recommendation ? this._pill(o.recommendation[0].toUpperCase() + o.recommendation.slice(1), `rec-${o.recommendation}`) : nothing}
+            ${o.impact ? this._pill(o.impact[0].toUpperCase() + o.impact.slice(1), `impact-${o.impact}`) : nothing}
+          </div>
+          ${o.brandName ? html`<p class="obs-brand">${o.brandName}</p>` : nothing}
+          <p class="obs-name">${o.title}</p>
+          ${o.sources.length
+            ? html`<div class="obs-sources">
+                ${o.sources.map(
+                  (s) => html`<span class="nc-source-chip nc-source-chip--${sourceKey(s)}">${sourceLabel(s)}</span>`
+                )}
+              </div>`
+            : nothing}
+          ${o.summary ? html`<p class="obs-description">${this._renderWithLinks(o.summary)}</p>` : nothing}
+        </div>
+        ${open
+          ? html`
+              <div class="obs-detail">
+                ${o.businessImpact ? html`<div><p class="obs-detail-label">Business impact</p><p>${o.businessImpact}</p></div>` : nothing}
+                ${o.recommendedAction ? html`<div><p class="obs-detail-label">Recommended action</p><p>${o.recommendedAction}</p></div>` : nothing}
+                ${o.rationale ? html`<div><p class="obs-detail-label">Rationale</p><p>${this._renderWithLinks(o.rationale)}</p></div>` : nothing}
+                ${o.trackingTerms.length ? html`<p class="obs-terms">${o.trackingTerms.map((t) => html`<span class="nc-term">${t}</span>`)}</p>` : nothing}
+                ${o.authoritativeSource?.url
+                  ? html`<a class="obs-source" href=${o.authoritativeSource.url} target="_blank" rel="noopener noreferrer"
+                      >Primary source: ${o.authoritativeSource.publication ||
+                      o.authoritativeSource.title ||
+                      o.authoritativeSource.url}</a
+                    >`
+                  : nothing}
+                ${this._renderDrafts(o.id)}
+                <div class="obs-actions">${this._renderGenerateButton(o)}</div>
+              </div>
+            `
+          : nothing}
+        <button
+          type="button"
+          class="obs-expand-toggle"
+          aria-expanded=${open}
+          aria-label=${open ? 'Show less' : 'Show details'}
+          @click=${() => this._toggleExpanded(o.id)}
+        >
+          ${chevronIcon()}
+        </button>
+      </div>
+    `;
   }
 
   _renderContent() {
-    if (!this._siteId || !this._apiKey) {
-      return html`
-        <div class="card error">
-          <p class="card-title">Configuration Error</p>
-          <p>Missing required query parameters:</p>
-          <ul>
-            ${!this._siteId ? html`<li><code>nerve-center-site-id</code></li>` : nothing}
-            ${!this._apiKey ? html`<li><code>nerve-center-key</code></li>` : nothing}
-          </ul>
-        </div>`;
+    if (!this._token) {
+      return html`<div class="card"><p>Sign in to Experience Workspace to see your organization's trends.</p></div>`;
     }
-
     if (this._loading) {
-      return html`
-        <div class="card">
-          <sl-skeleton effect="pulse" style="height:56px;margin-bottom:12px;"></sl-skeleton>
-          <sl-skeleton effect="pulse" style="height:56px;margin-bottom:12px;"></sl-skeleton>
-          <sl-skeleton effect="pulse" style="height:56px;"></sl-skeleton>
-        </div>`;
+      return html`<div class="card">
+        <sl-skeleton effect="pulse" style="height:56px;margin-bottom:12px;"></sl-skeleton>
+        <sl-skeleton effect="pulse" style="height:56px;margin-bottom:12px;"></sl-skeleton>
+        <sl-skeleton effect="pulse" style="height:56px;"></sl-skeleton>
+      </div>`;
     }
-
     if (this._error) {
-      return html`
-        <div class="card error">
-          <p>Failed to load observations: ${this._error}</p>
-          <sl-button class="ew-fill-accent" @click=${() => this._fetchObservations()}>Retry</sl-button>
-        </div>`;
+      return html`<div class="card error">
+        <p>Couldn't load trends: ${this._error}</p>
+        <sl-button class="ew-fill-accent" @click=${() => this._fetchObservations()}>Retry</sl-button>
+      </div>`;
     }
-
     if (this._observations.length === 0) {
-      return html`<div class="card"><p>No observations found for this site.</p></div>`;
+      return html`<div class="card"><p>No trends for your organization yet.</p></div>`;
     }
-
-    const pending = this._observations.filter((obs) => !this._completed.has(obs.id));
-    const done = this._observations.filter((obs) => this._completed.has(obs.id));
-
+    const rows = this._visibleObservations();
+    const acted = this._observations.filter((o) => this._outcomes[o.id] === 'acted');
+    const dismissed = this._observations.filter((o) => this._outcomes[o.id] === 'dismissed');
+    const moreToLoad = this._observations.length < this._total;
     return html`
-      ${pending.map((obs) => html`
-        <div class="card observation-item">
-          <div class="obs-meta">
-            <span class="badge badge--${obs.status?.toLowerCase()}">${obs.status}</span>
-            ${obs.priority ? html`<span class="badge badge--priority--${obs.priority?.toLowerCase()}">${obs.priority}</span>` : nothing}
-            ${obs.classification ? html`<span class="badge">${obs.classification}</span>` : nothing}
-                        <button class="obs-check-btn" aria-label="Mark complete"
-                @click=${() => this._toggleComplete(obs.id)}>✓</button>
-            </div>
+      ${this._renderToolbar()}
+      <p class="nc-count">${rows.length} of ${this._total}</p>
+      ${rows.length
+        ? rows.map((o) => this._renderCard(o))
+        : html`<div class="card"><p>No matching trends.</p></div>`}
+      ${moreToLoad
+        ? html`<button
+            class="nc-load-more"
+            ?disabled=${this._loadingMore}
+            @click=${() => this._loadMore()}
+          >
+            ${this._loadingMore
+              ? 'Loading…'
+              : `Load more (${this._total - this._observations.length} more)`}
+          </button>`
+        : nothing}
+      ${acted.length
+        ? html`<p class="outcome-label outcome-label--acted">Acted</p>
+            ${acted.map((o) => this._renderResolvedCard(o, 'acted'))}`
+        : nothing}
+      ${dismissed.length
+        ? html`<p class="outcome-label outcome-label--dismissed">Dismissed</p>
+            ${dismissed.map((o) => this._renderResolvedCard(o, 'dismissed'))}`
+        : nothing}
+    `;
+  }
 
-          <div class="obs-header">
-            <p class="obs-name">${obs.name}</p>
-            <div class="obs-header-actions">
-              <button class="obs-complete-btn" aria-label="Details"
-                @click=${() => window.parent.postMessage({ type: 'nx-show-obs-details', obs }, '*')}>Learn more</button>
-            </div>
-          </div>
-          ${obs.description ? html`<p class="obs-description">${this._renderWithLinks(obs.description)}</p>` : nothing}
-          ${obs.confidence ? html`
-            <div class="confidence-wrap">
-              <span class="confidence-label">Confidence</span>
-              <div class="confidence-bar">
-                <div class="confidence-fill confidence-fill--${obs.confidence}"></div>
-              </div>
-            </div>
-          ` : nothing}
-          ${this._renderDrafts(obs.id)}
-          ${this._renderButton(obs)}
+  _renderResolvedCard(o, kind) {
+    const cardClass = kind === 'acted' ? 'obs-resolved--acted' : 'obs-resolved--dismissed';
+    return html`
+      <div class="card observation-item obs-resolved ${cardClass}">
+        <div class="obs-header">
+          <p class="obs-name">
+            <span class="obs-mark obs-mark--${kind}">${kind === 'acted' ? checkIcon() : closeIcon()}</span>${o.title}
+          </p>
+          <button class="obs-undo-btn" @click=${() => this._clearOutcome(o.id)}>Undo</button>
         </div>
-      `)}
-      ${done.length ? html`
-        <p class="completed-label">Completed</p>
-        ${done.map((obs) => html`
-          <div class="card observation-item obs-completed">
-            <div class="obs-header">
-              <p class="obs-name"><span class="obs-check">✓</span>${obs.name}</p>
-              <button class="obs-complete-btn obs-complete-btn--done"
-                @click=${() => this._toggleComplete(obs.id)}>Undo</button>
-            </div>
-            <div class="obs-insights">
-              <p class="obs-insights-label">💡 Insights</p>
-              <p class="obs-insights-summary">One week after the Axios AI+NY Summit — where marketing and comms leaders discussed how AI is reshaping content discovery and brand visibility — the newly created page "how to make your brand discoverable in the AI era" shows promising signals of engagement:</p>
-              <ul class="obs-insights-metrics">
-                <li><span class="obs-metric-name">Page Visits</span><span class="obs-metric-value">0 → several thousand</span></li>
-                <li><span class="obs-metric-name">Referrals</span><span class="obs-metric-value">200 visits · 45% from LLMs, 55% from Social</span></li>
-                <li><span class="obs-metric-name">Agentic visits</span><span class="obs-metric-value">0 → hundreds (potential citations)</span></li>
-                <li><span class="obs-metric-name">AI citations</span><span class="obs-metric-value">Referenced in 6 of 15 prompts on AI content discovery</span></li>
-              </ul>
-            </div>
-          </div>
-        `)}
-      ` : nothing}`;
+      </div>`;
   }
 
   render() {
     return html`
       <div class="app-header">
-        <svg xmlns="http://www.w3.org/2000/svg" class="nc-logo" viewBox="0 0 160 160" focusable="false" aria-hidden="true"><defs><linearGradient id="00c6af__e" x1="-40.209" x2="219.921" y1="142.983" y2="-15.277" gradientUnits="userSpaceOnUse"><stop offset="0.06" stop-color="#8480FE"></stop><stop offset="0.6" stop-color="#8480FE" stop-opacity="0"></stop></linearGradient><linearGradient id="00c6af__f" x1="168.544" x2="56.949" y1="29.472" y2="149.467" gradientUnits="userSpaceOnUse"><stop stop-color="#EB1000"></stop><stop offset="1" stop-color="#EB1000" stop-opacity="0"></stop></linearGradient><linearGradient id="00c6af__g" x1="32.925" x2="230.753" y1="166.029" y2="55.209" gradientUnits="userSpaceOnUse"><stop stop-color="#FC7D00" stop-opacity="0"></stop><stop offset="0.432" stop-color="#FC7D00"></stop><stop offset="0.609" stop-color="#FC7D00"></stop><stop offset="1" stop-color="#FC7D00" stop-opacity="0"></stop></linearGradient><radialGradient id="00c6af__d" cx="0" cy="0" r="1" gradientTransform="rotate(90 42.131 48.337)scale(69.6088)" gradientUnits="userSpaceOnUse"><stop offset="0.167" stop-color="#FF709F"></stop><stop offset="1" stop-color="#FF709F" stop-opacity="0"></stop></radialGradient><radialGradient id="00c6af__h" cx="0" cy="0" r="1" gradientTransform="rotate(90 60.885 89.79)scale(69.6088)" gradientUnits="userSpaceOnUse"><stop offset="0.167" stop-color="#EB1000"></stop><stop offset="1" stop-color="#EB1000" stop-opacity="0"></stop></radialGradient><clipPath id="00c6af__a"><path fill="#fff" d="M0 0h160v160H0z"></path></clipPath><clipPath id="00c6af__c"><rect width="160" height="160" fill="#fff" rx="5.125"></rect></clipPath></defs><g clip-path="url(#00c6af__a)"><clipPath id="00c6af__b"><path fill="#fff" fill-rule="evenodd" d="M14.537 30.564c-.696.178-1.243.716-1.433 1.41-.19.692.007 1.434.515 1.942l15.729 15.729c.415.415.991.627 1.576.579l12.068-.982 22.952 22.951c1.562 1.562 4.094 1.562 5.657 0s1.562-4.094 0-5.657L48.65 43.586l.982-12.07c.048-.585-.164-1.161-.579-1.576l-15.73-15.73c-.507-.508-1.249-.704-1.942-.514s-1.23.736-1.409 1.433l-3.147 12.287zm65.284-2.62c-6.31 0-12.35 1.122-17.936 3.173-2.074.762-4.372-.302-5.134-2.376s.302-4.372 2.376-5.133c6.456-2.372 13.429-3.664 20.694-3.664 33.152 0 60.028 26.875 60.028 60.027S112.973 140 79.821 140s-60.027-26.875-60.027-60.028c0-7.074 1.225-13.87 3.479-20.184.742-2.08 3.03-3.165 5.111-2.422s3.166 3.031 2.423 5.112c-1.95 5.462-3.013 11.35-3.013 17.494C27.794 108.705 51.087 132 79.82 132s52.028-23.294 52.028-52.028-23.294-52.027-52.028-52.027M79.82 54.46c-3.393 0-6.62.66-9.571 1.855-2.047.83-4.38-.158-5.21-2.205-.829-2.048.159-4.38 2.207-5.21 3.888-1.574 8.135-2.44 12.574-2.44 18.506 0 33.508 15.003 33.508 33.509s-15.002 33.509-33.508 33.509c-18.507 0-33.509-15.003-33.509-33.509 0-4.136.751-8.106 2.129-11.775.776-2.068 3.082-3.115 5.15-2.339s3.115 3.083 2.34 5.15c-1.046 2.784-1.619 5.802-1.619 8.964 0 14.088 11.42 25.509 25.509 25.509 14.088 0 25.508-11.421 25.508-25.509S93.908 54.461 79.82 54.461m-9.138 31.165c7.73-.72 13.881-6.873 14.6-14.602 3.09 1.861 5.158 5.25 5.158 9.12 0 5.875-4.763 10.639-10.639 10.639-3.87 0-7.257-2.067-9.119-5.157"></path></clipPath><g clip-path="url(#00c6af__b)"><g clip-path="url(#00c6af__c)"><rect width="160" height="160" fill="#FFECCF" rx="5.125"></rect><path fill="#FFECCF" d="M0 0h160v160H0z"></path><circle cx="90.468" cy="6.206" r="69.609" fill="url(#00c6af__d)" transform="rotate(-.08 90.468 6.206)"></circle><path fill="url(#00c6af__e)" d="M61.07-28.263c-12.288-7.603-27.857-7.65-40.19-.12l-123.358 75.318c-12.081 7.377-12.101 24.788-.036 32.193l122.542 75.211c12.315 7.557 27.884 7.548 40.188-.027l122.29-75.281c12.001-7.39 12.023-24.703.037-32.12z"></path><path fill="url(#00c6af__f)" d="M23.058 75.965C25.793 16.232 76.433-29.975 136.166-27.24c59.732 2.735 105.938 53.375 103.204 113.108s-53.375 105.939-113.108 103.204C66.53 186.337 20.324 135.697 23.058 75.965"></path><path fill="url(#00c6af__g)" d="M-64.825 115.35c23.744-10.129 49.351-9.695 71.537-.835 44.394 17.773 70.225 6.784 88.141-37.508 8.925-22.226 26.348-41.049 50.119-51.19 47.525-20.243 102.392 1.723 122.607 49.108 20.214 47.385-1.912 102.165-49.426 122.435-23.824 10.163-49.48 9.687-71.7.747-44.322-17.678-70.104-6.648-87.998 37.698-8.947 22.173-26.366 40.931-50.11 51.061-47.488 20.258-102.354-1.707-122.558-49.066-20.203-47.359 1.9-102.191 49.388-122.45"></path><circle cx="150.675" cy="28.906" r="69.609" fill="url(#00c6af__h)" transform="rotate(-.08 150.675 28.906)"></circle></g></g></g></svg>
         <h3>Trend Identifier</h3>
       </div>
       ${this._renderContent()}

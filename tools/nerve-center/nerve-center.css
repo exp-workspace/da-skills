@@ -3,7 +3,8 @@ nerve-center-app {
   --ew-accent-hover: var(--s2-blue-1000);
 
   display: block;
-  margin: 10px;
+  max-width: 760px;
+  margin: 10px auto;
   padding: 0 6px;
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
@@ -47,21 +48,8 @@ nerve-center-app .app-header {
   margin-bottom: var(--spacing-200, 12px);
 }
 
-nerve-center-app .nc-logo {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-}
-
-nerve-center-app .app-title {
-  font-size: var(--s2-heading-xl-size, 28px);
-  font-weight: 700;
-  margin: 0;
-  color: var(--s2-gray-900, #1a1a1a);
-  letter-spacing: -0.02em;
-}
-
 nerve-center-app .card {
+  padding: var(--spacing-300, 16px);
   border-radius: var(--s2-radius-200, 10px);
   box-shadow: 0 1px 6px 0 rgb(0 0 0 / 12%);
 }
@@ -69,13 +57,6 @@ nerve-center-app .card {
 nerve-center-app .card.error {
   background: var(--s2-red-50, #fef2f2);
   border-color: var(--s2-red-200, #fecaca);
-}
-
-nerve-center-app .card-title {
-  font-size: var(--s2-heading-s-size, 18px);
-  font-weight: 700;
-  margin: 0 0 var(--spacing-300, 16px);
-  color: var(--s2-gray-900, #1a1a1a);
 }
 
 nerve-center-app .card ul {
@@ -92,6 +73,15 @@ nerve-center-app .card {
 
 nerve-center-app .card:last-of-type {
   margin-bottom: 0;
+}
+
+nerve-center-app .obs-brand {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ew-accent);
+  margin: 0 0 4px;
 }
 
 nerve-center-app .obs-name {
@@ -122,134 +112,88 @@ nerve-center-app .obs-meta {
   flex-wrap: wrap;
   gap: var(--spacing-75, 6px);
   margin-bottom: var(--spacing-200, 12px);
+  /* leave room for the top-right acted / dismiss buttons */
+  padding-right: 66px;
 }
 
-nerve-center-app .badge {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 99px;
-  background: var(--s2-gray-200, #e0e0e0);
-  color: var(--s2-gray-800, #222);
-  text-transform: capitalize;
+nerve-center-app .observation-item {
+  position: relative;
 }
 
-nerve-center-app .badge--confirmed,
-nerve-center-app .badge--active {
-  background: var(--s2-green-100, #dcfce7);
-  color: var(--s2-green-800, #166534);
-  border: 1px solid;
-}
-nerve-center-app .badge--draft {
-  background: var(--s2-blue-100, #dbeafe);
-  color: var(--s2-blue-800, #1e40af);
-  border: 1px solid;
-}
-nerve-center-app .badge--archived {
-  background: var(--s2-gray-200, #e5e7eb);
-  color: var(--s2-gray-600, #767676);
-  border: 1px solid;
+nerve-center-app .obs-outcome-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: flex;
+  gap: 6px;
 }
 
-nerve-center-app .badge--priority--high {
-  background: var(--s2-orange-100, #ffedd5);
-  color: var(--s2-orange-800, #9a3412);
-  border: 1px solid;
+nerve-center-app .obs-outcome-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--s2-gray-300, #ccc);
+  background: #fff;
+  color: var(--s2-gray-500, #999);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
-nerve-center-app .badge--priority--medium {
-  background: var(--s2-blue-100, #dbeafe);
-  color: var(--s2-blue-800, #1e40af);
-  border: 1px solid;
+
+nerve-center-app .obs-outcome-btn .nc-check,
+nerve-center-app .obs-outcome-btn .nc-close {
+  width: 15px;
+  height: 15px;
 }
-nerve-center-app .badge--priority--low {
+
+nerve-center-app .obs-outcome-btn--acted:hover {
+  border-color: var(--s2-green-600, #16a34a);
+  color: var(--s2-green-700, #15803d);
+  background: var(--s2-green-50, #f0fdf4);
+}
+
+nerve-center-app .obs-outcome-btn--dismiss:hover {
+  border-color: var(--s2-gray-500, #999);
+  color: var(--s2-gray-800, #444);
   background: var(--s2-gray-100, #f3f4f6);
-  color: var(--s2-gray-600, #767676);
-  border: 1px solid;
 }
 
-nerve-center-app .confidence-wrap {
+nerve-center-app .obs-expand-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: var(--spacing-200, 12px);
-}
-
-nerve-center-app .confidence-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--s2-gray-500, #999);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-nerve-center-app .confidence-bar {
-  width: 80px;
-  height: 6px;
-  background: var(--s2-gray-200, #e0e0e0);
-  border-radius: 3px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-nerve-center-app .confidence-fill {
-  height: 100%;
-  border-radius: 3px;
-}
-
-nerve-center-app .confidence-fill--high {
+  justify-content: center;
   width: 100%;
-  background: var(--s2-green-500, #22c55e);
+  margin-top: 4px;
+  padding: 4px 0 0;
+  border: none;
+  background: transparent;
+  color: var(--s2-gray-400, #aaa);
+  cursor: pointer;
 }
 
-nerve-center-app .confidence-fill--medium {
-  width: 55%;
-  background: var(--s2-orange-500, #f97316);
+nerve-center-app .obs-expand-toggle:hover {
+  color: var(--s2-gray-700, #555);
 }
 
-nerve-center-app .confidence-fill--low {
-  width: 25%;
-  background: var(--s2-red-400, #f87171);
+nerve-center-app .obs-expand-toggle .nc-chevron {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s ease;
+}
+
+nerve-center-app .observation-item.is-open .obs-expand-toggle .nc-chevron {
+  transform: rotate(180deg);
 }
 
 nerve-center-app .drafts {
   margin-bottom: var(--spacing-200, 12px);
-}
-
-nerve-center-app .drafts-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: var(--spacing-150, 10px);
-  font-size: 13px;
-}
-
-nerve-center-app .drafts-table th {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--s2-gray-500, #999);
-  padding: 0 0 6px;
-  border-bottom: 1px solid var(--s2-gray-100, #f0f0f0);
-}
-
-nerve-center-app .drafts-table td {
-  padding: 6px 0;
-  border-bottom: 1px solid var(--s2-gray-100, #f0f0f0);
-  vertical-align: middle;
-
-  &:first-child {
-    padding-right: 10px;
-  }
-}
-
-nerve-center-app .drafts-table tr:last-child td {
-  border-bottom: none;
-}
-
-nerve-center-app .draft-role {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--s2-gray-600, #767676);
-  white-space: nowrap;
 }
 
 nerve-center-app .drafts-label {
@@ -277,73 +221,40 @@ nerve-center-app .draft-link:hover {
   text-decoration: underline;
 }
 
-nerve-center-app .draft-link:last-child {
-  border-bottom: none;
-}
-
-nerve-center-app .draft-link:hover {
-  text-decoration: underline;
-}
-
-nerve-center-app .obs-chat-btn {
-  width: 100%;
-}
-
-nerve-center-app .obs-header-actions {
+nerve-center-app .obs-actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+nerve-center-app .obs-generate-btn {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
-}
-
-nerve-center-app .obs-info-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 1px solid var(--s2-gray-300, #ccc);
-  background: transparent;
-  color: var(--s2-gray-600, #767676);
-  cursor: pointer;
+  padding: 5px 12px 5px 10px;
   font-size: 13px;
-  font-style: italic;
-  font-weight: 700;
-  line-height: 1;
-}
-
-nerve-center-app .obs-info-btn:hover {
-  background: var(--s2-gray-100, #f5f5f5);
-  border-color: var(--s2-gray-400, #aaa);
-}
-
-.obs-meta {
-  position: relative;
-}
-
-nerve-center-app .obs-check-btn {
-  position: absolute;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 1px solid var(--s2-gray-300, #ccc);
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--ew-accent);
   background: transparent;
-  color: var(--s2-gray-500, #999);
+  border: 1px solid var(--s2-gray-300, #ccc);
+  border-radius: 999px;
   cursor: pointer;
-  font-size: 13px;
-  line-height: 1;
-  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
-nerve-center-app .obs-check-btn:hover {
-  border-color: var(--s2-green-600, #16a34a);
-  color: var(--s2-green-700, #15803d);
-  background: var(--s2-green-50, #f0fdf4);
+nerve-center-app .obs-generate-btn:hover {
+  background: var(--s2-blue-100, #eff6ff);
+  border-color: var(--ew-accent);
+}
+
+nerve-center-app .obs-generate-btn .nc-sparkle {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 nerve-center-app .obs-header {
@@ -360,102 +271,74 @@ nerve-center-app .obs-header .obs-name {
   font-size: 16px;
 }
 
-nerve-center-app .obs-check {
+nerve-center-app .outcome-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: var(--spacing-300, 16px) 0 var(--spacing-75, 6px);
+}
+
+nerve-center-app .outcome-label--acted {
   color: var(--s2-green-700, #15803d);
+}
+
+nerve-center-app .outcome-label--dismissed {
+  color: var(--s2-gray-500, #999);
+}
+
+nerve-center-app .observation-item.obs-resolved--acted {
+  background: var(--s2-green-50, #f0fdf4);
+  border-color: var(--s2-green-300, #86efac);
+}
+
+nerve-center-app .observation-item.obs-resolved--dismissed {
+  background: var(--s2-gray-75, #f3f3f3);
+  border-color: var(--s2-gray-300, #ccc);
+}
+
+nerve-center-app .obs-mark {
+  display: inline-flex;
+  vertical-align: middle;
   margin-right: 6px;
 }
 
-nerve-center-app .obs-complete-btn {
+nerve-center-app .obs-mark .nc-check,
+nerve-center-app .obs-mark .nc-close {
+  width: 15px;
+  height: 15px;
+}
+
+nerve-center-app .obs-mark--acted {
+  color: var(--s2-green-700, #15803d);
+}
+
+nerve-center-app .obs-mark--dismissed {
+  color: var(--s2-gray-500, #999);
+}
+
+nerve-center-app .obs-undo-btn {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 99px;
-  border: 1px solid var(--s2-gray-400, #aaa);
+  font-family: inherit;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--s2-gray-300, #ccc);
   background: transparent;
   color: var(--s2-gray-600, #767676);
   cursor: pointer;
   white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
-nerve-center-app .obs-complete-btn:hover {
+nerve-center-app .obs-undo-btn:hover {
   border-color: var(--s2-gray-600, #767676);
   color: var(--s2-gray-900, #1a1a1a);
-}
-
-nerve-center-app .obs-complete-btn--done {
-  border-color: var(--s2-green-600, #16a34a);
-  color: var(--s2-green-700, #15803d);
-  background: var(--s2-green-50, #f0fdf4);
-}
-
-nerve-center-app .obs-complete-btn--done:hover {
-  background: var(--s2-green-100, #dcfce7);
-  border-color: var(--s2-green-700, #15803d);
-}
-
-nerve-center-app .obs-insights {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--s2-green-200, #bbf7d0);
-}
-
-nerve-center-app .obs-insights-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--s2-green-700, #15803d);
-  margin: 0 0 6px;
-}
-
-nerve-center-app .obs-insights-summary {
-  font-size: 12px;
-  color: var(--s2-gray-600, #767676);
-  margin: 0 0 8px;
-  line-height: 1.5;
-}
-
-nerve-center-app .obs-insights-metrics {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-nerve-center-app .obs-insights-metrics li {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 12px;
-}
-
-nerve-center-app .obs-metric-name {
-  color: var(--s2-gray-500, #999);
-  flex-shrink: 0;
-}
-
-nerve-center-app .obs-metric-value {
-  color: var(--s2-gray-900, #1a1a1a);
-  font-weight: 600;
-  text-align: right;
-}
-
-nerve-center-app .completed-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--s2-green-700, #15803d);
-  margin: var(--spacing-300, 16px) 0 var(--spacing-75, 6px);
-}
-
-nerve-center-app .observation-item.obs-completed {
-  background: var(--s2-green-50, #f0fdf4);
-  border-color: var(--s2-green-300, #86efac);
+  background: var(--s2-gray-100, #f3f4f6);
 }
 
 sl-button.ew-outline-accent {
@@ -506,8 +389,103 @@ nerve-center-app .nc-preview-btn {
   transform: translateX(-50%) translateY(0);
 }
 
-@media (width <= 600px) {
-  nerve-center-app .card {
-    padding: var(--spacing-300, 16px);
-  }
+/* --- Trend Identifier: search / filters / sort / pills / detail (org-scoped rework) --- */
+.nc-toolbar { display: flex; align-items: center; gap: 8px; margin: 8px 0 10px; }
+.nc-search { flex: 1; }
+.nc-search input { width: 100%; box-sizing: border-box; height: 34px; padding: 0 10px; border: 1px solid #d3d1c7; border-radius: 6px; font-size: 14px; }
+.nc-filter-toggle { height: 34px; padding: 0 12px; border: 1px solid #b4b2a9; border-radius: 6px; background: transparent; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.nc-filter-toggle.is-open { background: #f1efe8; }
+.nc-filter-count { background: #185fa5; color: #fff; border-radius: 999px; font-size: 11px; font-weight: 600; padding: 0 6px; }
+.nc-controls { border: 1px solid #e6e4dc; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+.nc-control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nc-control-label { font-size: 12px; color: #6b6a64; width: 48px; }
+.nc-chip { padding: 4px 11px; font-size: 12px; font-weight: 500; border-radius: 999px; border: 1px solid #d3d1c7; background: #fff; color: #5f5e5a; cursor: pointer; }
+.nc-chip.is-active { background: #e6f1fb; border-color: #85b7eb; color: #0c447c; }
+.nc-count { font-size: 12px; color: #888780; margin: 0 0 8px; }
+.obs-clickable { cursor: pointer; }
+
+nerve-center-app .nc-load-more {
+  display: block;
+  width: 100%;
+  margin: 4px 0 8px;
+  padding: 9px 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--ew-accent);
+  background: transparent;
+  border: 1px solid var(--s2-gray-300, #ccc);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
+
+nerve-center-app .nc-load-more:hover:not(:disabled) {
+  background: var(--s2-blue-100, #eff6ff);
+  border-color: var(--ew-accent);
+}
+
+nerve-center-app .nc-load-more:disabled {
+  color: var(--s2-gray-500, #999);
+  cursor: default;
+}
+
+/* Detection-source chips — provenance shown prominently in the collapsed card. */
+nerve-center-app .obs-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+nerve-center-app .nc-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--s2-gray-200, #e0e0e0);
+  color: var(--s2-gray-700, #555);
+}
+
+nerve-center-app .nc-source-chip::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--s2-gray-400, #aaa);
+}
+
+nerve-center-app .nc-source-chip--google-trends::before {
+  background: #4285f4;
+}
+
+nerve-center-app .nc-source-chip--news::before {
+  background: #d97706;
+}
+
+nerve-center-app .nc-source-chip--reddit::before {
+  background: #ff4500;
+}
+
+nerve-center-app .nc-source-chip--youtube::before {
+  background: #ff0000;
+}
+.obs-detail { border-top: 1px solid #e6e4dc; margin-top: 10px; padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.obs-detail p { margin: 0; font-size: 13px; color: #444441; line-height: 1.55; }
+.obs-detail-label { text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; color: #888780; margin-bottom: 3px !important; }
+.obs-terms { display: flex; gap: 6px; flex-wrap: wrap; }
+.nc-term { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #f1efe8; }
+.obs-source { font-size: 13px; color: #185fa5; }
+.drafts-list { margin: 4px 0 8px; padding-left: 18px; }
+.nc-pill { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; margin-right: 6px; }
+.nc-pill--tier-critical, .nc-pill--rec-act, .nc-pill--impact-threat { background: #fdecec; color: #a3272d; }
+.nc-pill--tier-high, .nc-pill--rec-watch { background: #faeeda; color: #7a4a0b; }
+.nc-pill--tier-medium { background: #e6f1fb; color: #0c447c; }
+.nc-pill--tier-low, .nc-pill--rec-ignore { background: #f1efe8; color: #5f5e5a; }
+.nc-pill--impact-opportunity { background: #eaf3de; color: #27500a; }
