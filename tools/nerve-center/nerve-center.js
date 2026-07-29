@@ -102,96 +102,6 @@ function normalize(o) {
   };
 }
 
-// TEMP: hardcoded sample observations for local UI work when no NC backend is
-// available. Enabled only with `?mock` on the URL. Shape mirrors the raw API
-// response items (pre-normalize). Remove once the backend flow is wired up.
-const MOCK_OBSERVATIONS = [
-  {
-    observationId: 'mock-1',
-    id: 'evt-mock-1',
-    title: 'Search interest surges for "AI-assisted authoring"',
-    summary: 'Cross-source spike in search and news mentions over the last week for AI authoring tools.',
-    subject: 'AI Authoring',
-    brandName: 'Acme',
-    boostedSeverity: 92,
-    recommendation: 'act',
-    impact: 'opportunity',
-    corroborated: true,
-    matchStatus: 'confirmed',
-    sources: ['google_trends', 'news'],
-    trackingTerms: ['AI authoring', 'content automation'],
-    businessImpact: 'Rising demand signals a chance to capture net-new organic traffic.',
-    recommendedAction: 'Publish a comparison page and a getting-started guide.',
-    rationale: 'Tracks "AI authoring" via self tracking. See [coverage](https://example.com/article).',
-    authoritativeSource: { url: 'https://news.acme.com/2026/07/ai-authoring', publication: 'news.acme.com' },
-    lastDetectedOn: '2026-07-24',
-    status: 'active',
-  },
-  {
-    observationId: 'mock-2',
-    id: 'evt-mock-2',
-    title: 'Competitor launches free tier',
-    summary: 'A direct competitor announced a free tier; coverage expanding across major publishers.',
-    subject: 'Pricing',
-    brandName: 'Acme',
-    boostedSeverity: 74,
-    recommendation: 'watch',
-    impact: 'threat',
-    corroborated: true,
-    matchStatus: 'confirmed',
-    sources: ['news'],
-    trackingTerms: ['free tier', 'pricing'],
-    businessImpact: 'Potential churn pressure on price-sensitive segments.',
-    recommendedAction: 'Sharpen value-prop messaging on pricing pages.',
-    rationale: 'Detected via news grounding.',
-    authoritativeSource: null,
-    lastDetectedOn: '2026-07-22',
-    status: 'active',
-  },
-  {
-    observationId: 'mock-3',
-    id: 'evt-mock-3',
-    title: 'Seasonal dip in "template gallery" queries',
-    summary: 'Search interest for template galleries is trending down heading into summer.',
-    subject: 'Templates',
-    brandName: 'Northwind',
-    latestSeverity: 38,
-    recommendation: 'ignore',
-    impact: 'neutral',
-    corroborated: false,
-    matchStatus: 'candidate',
-    sources: ['google_trends'],
-    trackingTerms: ['templates'],
-    businessImpact: '',
-    recommendedAction: '',
-    rationale: 'Single-source, uncorroborated candidate.',
-    authoritativeSource: null,
-    lastDetectedOn: '2026-07-19',
-    status: 'active',
-  },
-  {
-    observationId: 'mock-4',
-    id: 'evt-mock-4',
-    title: 'Spike in enterprise SSO interest',
-    summary: 'Growing search + forum discussion around enterprise SSO and SAML setup.',
-    subject: 'Enterprise SSO',
-    brandName: 'Acme',
-    boostedSeverity: 61,
-    recommendation: 'act',
-    impact: 'opportunity',
-    corroborated: true,
-    matchStatus: 'confirmed',
-    sources: ['google_trends', 'news'],
-    trackingTerms: ['SSO', 'SAML', 'enterprise'],
-    businessImpact: 'Enterprise buyers actively researching — strong mid-funnel signal.',
-    recommendedAction: 'Add an SSO setup guide and an enterprise landing page.',
-    rationale: 'Corroborated across trends and news.',
-    authoritativeSource: { url: 'https://example.com/sso', title: 'SSO explained', publication: 'example.com' },
-    lastDetectedOn: '2026-07-25',
-    status: 'active',
-  },
-];
-
 class NerveCenterApp extends LitElement {
   static properties = {
     _token: { state: true },
@@ -274,16 +184,6 @@ class NerveCenterApp extends LitElement {
       if (stored) this._outcomes = JSON.parse(stored) || {};
     } catch {
       /* ignore */
-    }
-
-    // TEMP: `?mock` loads hardcoded observations and skips the DA SDK + NC
-    // backend entirely, so the UI can be worked on without a live backend.
-    if (params.has('mock')) {
-      this._token = 'mock';
-      this._observations = MOCK_OBSERVATIONS.map(normalize);
-      this._total = this._observations.length;
-      this._loading = false;
-      return;
     }
 
     try {
@@ -542,7 +442,7 @@ class NerveCenterApp extends LitElement {
     let rows = this._observations
       // Only vetted observations reach customers. The org endpoint already defaults
       // to matchStatus=confirmed server-side; this is a defensive guard so unvetted
-      // rows (e.g. mock candidates) never render if the contract ever changes.
+      // rows (e.g. uncorroborated candidates) never render if the contract ever changes.
       .filter((o) => o.matchStatus === 'confirmed')
       .filter((o) => !this._outcomes[o.id])
       .filter((o) => this._rec === 'all' || o.recommendation === this._rec)
