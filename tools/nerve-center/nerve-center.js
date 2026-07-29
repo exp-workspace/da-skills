@@ -440,10 +440,10 @@ class NerveCenterApp extends LitElement {
   _visibleObservations() {
     const q = this._q.trim().toLowerCase();
     let rows = this._observations
-      // Only vetted observations reach customers. The org endpoint already defaults
-      // to matchStatus=confirmed server-side; this is a defensive guard so unvetted
-      // rows (e.g. uncorroborated candidates) never render if the contract ever changes.
-      .filter((o) => o.matchStatus === 'confirmed')
+      // The org endpoint returns observations of every match status by default and
+      // already applies the server-side corroboration promotion gate. Show those
+      // corroborated observations, hiding only ones a reviewer has explicitly rejected.
+      .filter((o) => o.matchStatus !== 'rejected')
       .filter((o) => !this._outcomes[o.id])
       .filter((o) => this._rec === 'all' || o.recommendation === this._rec)
       .filter((o) => !q || `${o.title} ${o.summary} ${o.subject} ${o.brandName}`.toLowerCase().includes(q));
