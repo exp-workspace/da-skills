@@ -7,6 +7,9 @@ import './shared/popover/popover.js';
 import {
   fetchDaConfigSheets,
   loadSkillsFromAo,
+  fetchSkillFileFromAo,
+  disablePersonalSkillOverride,
+  AO_SCOPE_PERSONAL,
   upsertSkillInConfig,
   deleteSkillFromConfig,
   writeSkillMdFile,
@@ -956,26 +959,15 @@ class NxSkillsEditor extends LitElement {
   }
 
   async _onDeleteSkillById(id) {
+    if (this._skillScopes[id] !== AO_SCOPE_PERSONAL) return;
     if (!await this._confirm('skill', id)) return;
     this._isSaveBusy = true;
 
-    const { text: rollbackBody } = await readSkillMdFile(this._org, this._site, id);
-
-    const fileResult = await deleteSkillMdFile(this._org, this._site, id);
-    if (!fileResult.ok) {
-      this._setStatus('Failed to delete skill file', STATUS_TYPE.ERR);
-      this._isSaveBusy = false;
-      return;
-    }
-
-    const configResult = await deleteSkillFromConfig(this._org, this._site, id);
+    const result = await disablePersonalSkillOverride(id);
     this._isSaveBusy = false;
 
-    if (!configResult.ok) {
-      if (rollbackBody) {
-        writeSkillMdFile(this._org, this._site, id, rollbackBody).catch(() => {});
-      }
-      this._setStatus(configResult.error || 'Failed to delete skill', STATUS_TYPE.ERR);
+    if (!result.ok) {
+      this._setStatus(result.error || 'Failed to delete skill', STATUS_TYPE.ERR);
       return;
     }
     this._viewingSkillId = null;
@@ -1025,7 +1017,11 @@ class NxSkillsEditor extends LitElement {
 
   async _mountCMModal() {
     const id = this._viewingSkillId;
-    const body = this._skills[id] || '';
+    let body = this._skills[id] || '';
+    if (!body) {
+      body = await fetchSkillFileFromAo(id) || '';
+      if (body) this._skills = { ...this._skills, [id]: body };
+    }
 
     this._cmPortal = document.createElement('div');
     this._cmPortal.className = 'skill-md-portal';

@@ -104,10 +104,6 @@ function agentsUsingSkill(vm, skillId) {
   return result;
 }
 
-function isPluginSkill(skillId) {
-  return BUILTIN_AGENTS.some((a) => a.skills?.includes(skillId));
-}
-
 // ─── shared icon constants (used in catalog cards and detail views) ───────────
 const DRILL_CHEVRON = html`<svg class="drill-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>`;
 const PROMPT_ICON = html`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M2 8h8M2 12h10"/></svg>`;
@@ -159,7 +155,6 @@ function renderSkillCard(vm, id) {
           <span class="plugin-card-name">${displayName}</span>
         </div>
       </header>
-      ${description ? html`<p class="plugin-card-desc">${description}</p>` : nothing}
       <footer class="plugin-card-meta">
         ${usedBy.length ? html`
           ${usedBy.map((name) => html`<span class="plugin-card-count">⚡ ${name}</span>`)}
@@ -214,13 +209,11 @@ function renderSkillDetail(vm) {
   const fm = parseFrontmatter(body);
   const name = fm?.fields?.name || id;
   const description = vm.skillDescriptions[id] || fm?.fields?.description || extractTitle(body) || '';
-  const status = vm.skillStatuses[id] || STATUS.APPROVED;
-  const isDraft = status === STATUS.DRAFT;
   const usedBy = agentsUsingSkill(vm, id);
-  const readOnly = isPluginSkill(id);
+  const isPersonal = vm.skillScopes[id] === AO_SCOPE_PERSONAL;
+  const readOnly = !isPersonal;
   const pluginName = usedBy.length ? usedBy[0] : null;
-  const origin = readOnly ? 'built-in' : 'user-created';
-  const badgeLabel = isDraft ? 'DRAFT' : 'APPROVED';
+  const origin = isPersonal ? 'personal' : (vm.skillScopes[id] || 'application');
 
   return html`
     <div class="skill-detail">
@@ -229,28 +222,16 @@ function renderSkillDetail(vm) {
           <span class="skill-detail-icon">${TAB_ICON_MAP[TAB_SKILLS]}</span>
           <div>
             <span class="skill-detail-name">${name}</span>
-            <span class="skill-detail-sub">
-              ${pluginName ? html`${PLUGIN_ICON} Plugin: ${pluginName}` : html`${origin}`}
-            </span>
           </div>
         </div>
         ${!readOnly ? html`
           <div class="skill-detail-actions">
-            <button type="button" class="skill-detail-action-btn"
-              @click=${() => vm.onChangeSkillStatus(id, isDraft ? STATUS.APPROVED : STATUS.DRAFT)}
-            >${isDraft ? 'Approve' : 'Move to Draft'}</button>
-            <button type="button" class="skill-detail-action-btn"
-              @click=${() => vm.onEditSkill(id)}
-            >Edit</button>
             <button type="button" class="skill-detail-action-btn is-negative"
               @click=${() => vm.onDeleteSkillById(id)}
             >Delete</button>
           </div>
         ` : nothing}
       </header>
-
-      <span class="skill-detail-badge ${isDraft ? 'is-draft' : ''}">${readOnly ? 'BUILT-IN' : badgeLabel}</span>
-
       <div class="skill-detail-description">
         ${description || 'No description provided.'}
       </div>
@@ -295,7 +276,6 @@ function renderAgentCard(vm, agent, isBuiltin = false) {
           <span class="plugin-card-source">${isBuiltin ? 'built-in' : 'custom'}</span>
         </div>
       </header>
-      ${description ? html`<p class="plugin-card-desc">${description}</p>` : nothing}
       <footer class="plugin-card-meta">
         ${skillCount ? html`<span class="plugin-card-count">${skillCount} Skill${skillCount > 1 ? 's' : ''}</span>` : nothing}
         ${mcpCount ? html`<span class="plugin-card-count">${mcpCount} MCP${mcpCount > 1 ? 's' : ''}</span>` : nothing}
@@ -368,7 +348,6 @@ function renderPluginDetail(vm) {
           <span class="skill-detail-icon">${PLUGIN_ICON}</span>
           <div>
             <span class="skill-detail-name">${title}</span>
-            <span class="skill-detail-sub">${source}</span>
           </div>
         </div>
         ${!isBuiltin ? html`

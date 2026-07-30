@@ -509,23 +509,88 @@ function parseAoSkillsResponse(json) {
     .filter((s) => /^[a-z0-9][a-z0-9_-]{1,60}$/i.test(s.id));
 }
 
-export async function fetchSkillsFromAo() {
+async function aoAuthContext() {
   const token = await waitForImsToken();
   if (!token) return null;
+  const profile = await window.adobeIMS?.getProfile();
+  return {
+    token,
+    orgId: getImsOrgId(profile?.projectedProductContext),
+    userId: profile?.userId,
+    base: AO_HTTP_BASE[aoEnv()] || AO_HTTP_BASE.stage,
+  };
+}
+
+export async function fetchSkillsFromAo() {
+  const ctx = await aoAuthContext();
+  if (!ctx) return null;
   try {
-    const profile = await window.adobeIMS?.getProfile();
-    const orgId = getImsOrgId(profile?.projectedProductContext);
-    const base = AO_HTTP_BASE[aoEnv()] || AO_HTTP_BASE.stage;
-    const resp = await fetch(`${base}/api/v1/skills?manifest_id=${AO_MANIFEST_ID}`, {
+    const resp = await fetch(`${ctx.base}/api/v1/skills?manifest_id=${AO_MANIFEST_ID}`, {
       headers: {
-        authorization: `Bearer ${token}`,
-        'x-tenant-id': orgId,
+        authorization: `Bearer ${ctx.token}`,
+        'x-tenant-id': ctx.orgId,
       },
     });
     if (!resp.ok) return null;
     return parseAoSkillsResponse(await resp.json());
   } catch {
     return null;
+  }
+}
+
+/**
+ * Reads a file out of a skill's directory via AO — mirrors Coworker's own
+ * "view SKILL.md" call (GET /api/v1/skills/{skill_name}/files?path=...&manifest_id=...),
+ * confirmed against aep-ai's read_skill_file handler. Returns the raw file
+ * text (frontmatter included) or null on any failure.
+ */
+export async function fetchSkillFileFromAo(skillName, path = 'SKILL.md') {
+  const ctx = await aoAuthContext();
+  if (!ctx) return null;
+  try {
+    const url = `${ctx.base}/api/v1/skills/${encodeURIComponent(skillName)}/files`
+      + `?path=${encodeURIComponent(path)}&manifest_id=${AO_MANIFEST_ID}`;
+    const resp = await fetch(url, {
+      headers: {
+        authorization: `Bearer ${ctx.token}`,
+        'x-tenant-id': ctx.orgId,
+      },
+    });
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    return typeof json?.content === 'string' ? json.content : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Deletes a personal ("owner"-scope) skill via AO's per-user override API —
+ * mirrors aep-ai's reference web client (services/web/hooks/use-user-overrides.ts
+ * disableSkill): POST /api/v1/overrides/user/skills/{name}/disable removes the
+ * skill from this user's installed sources going forward. Only meaningful for
+ * scope: "owner" skills — application/tenant/platform-scope skills aren't
+ * owned by the caller and have no personal override to write.
+ */
+export async function disablePersonalSkillOverride(id) {
+  const ctx = await aoAuthContext();
+  if (!ctx) return { ok: false, error: 'Not signed in' };
+  try {
+    const resp = await fetch(
+      `${ctx.base}/api/v1/overrides/user/skills/${encodeURIComponent(id)}/disable`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${ctx.token}`,
+          'x-tenant-id': ctx.orgId,
+          'x-user-id': ctx.userId || '',
+        },
+      },
+    );
+    if (!resp.ok) return { ok: false, error: `Delete failed (${resp.status})` };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err?.message ?? err) };
   }
 }
 
