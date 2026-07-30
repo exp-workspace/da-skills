@@ -544,7 +544,7 @@ class BrandVisibilityApp extends LitElement {
         else summaries.push(text);
       }
       return [
-        'Update the page content - add a summary section in the beginning of the blog post:',
+        'Update the page content - add a summary section in the beginning of the blog content:',
         summaries.join('\n'),
         'Add a key points section below the summary:',
         bullets.map((b) => `- ${b}`).join('\n'),
