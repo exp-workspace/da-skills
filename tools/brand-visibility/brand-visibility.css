@@ -63,38 +63,12 @@ sl-button.ew-outline-accent::part(base):hover:not(:disabled) {
 brand-visibility-app .app-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   margin-bottom: var(--spacing-200, 12px);
 }
 
 brand-visibility-app .app-header h3 {
   margin: 0;
-}
-
-brand-visibility-app .bv-settings-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--s2-gray-300, #ccc);
-  background: #fff;
-  color: var(--s2-gray-600, #767676);
-  cursor: pointer;
-}
-
-brand-visibility-app .bv-settings-btn:hover {
-  border-color: var(--ew-accent);
-  color: var(--ew-accent);
-}
-
-brand-visibility-app .bv-settings-btn .bv-gear {
-  width: 16px;
-  height: 16px;
 }
 
 brand-visibility-app .card {
@@ -122,29 +96,6 @@ brand-visibility-app .card {
 
 brand-visibility-app .card:last-of-type {
   margin-bottom: 0;
-}
-
-/* --- Site ID setup form --- */
-brand-visibility-app .bv-setup-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-brand-visibility-app .bv-setup-row input {
-  flex: 1;
-  box-sizing: border-box;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid #d3d1c7;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-brand-visibility-app .bv-setup-hint {
-  font-size: 12px;
-  color: var(--s2-gray-500, #999);
-  margin: 6px 0 0;
 }
 
 brand-visibility-app .opp-title {

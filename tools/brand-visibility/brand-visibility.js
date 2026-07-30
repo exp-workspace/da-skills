@@ -1,9 +1,9 @@
 import DA_SDK from 'https://da.live/nx/utils/sdk.js';
 import { LitElement, html, nothing } from 'da-lit';
 
-// SpaceCat (LLMO) API origin. Defaults to prod; override for local dev with
-// ?spacecat-api=http://localhost:3001
-const DEFAULT_API_BASE_URL = 'https://spacecat.experiencecloud.live/api/v1';
+// LLMO API origin. Defaults to prod; override for local dev with
+// ?llmo-api=http://localhost:3001
+const DEFAULT_API_BASE_URL = 'https://llmo.experiencecloud.live/api/v1';
 const DA_ADMIN = 'https://admin.da.live';
 const DA_CANVAS = 'https://da.live/canvas';
 const DRAFTS_PREFIX = '/drafts/brand-visibility/';
@@ -107,15 +107,6 @@ const closeIcon = () => html`
   </svg>
 `;
 
-// Gear for the site-settings affordance.
-const gearIcon = () => html`
-  <svg class="bv-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
-  </svg>
-`;
-
 // Human-readable labels for opportunity statuses; the API is authoritative,
 // this is purely a display concern.
 const STATUS_LABELS = {
@@ -190,7 +181,7 @@ function renderPrerenderSuggestion(data) {
       <div class="opp-stat-row">
         ${data.valuable != null
           ? html`<span class="bv-pill bv-pill--status-${data.valuable ? 'resolved' : 'ignored'}">
-              ${data.valuable ? 'Valuable to prerender' : 'Not valuable'}
+              ${data.valuable ? 'High impact' : 'Low impact'}
             </span>`
           : nothing}
         ${typeof data.citabilityScore === 'number'
@@ -289,8 +280,6 @@ class BrandVisibilityApp extends LitElement {
   static properties = {
     _token: { state: true },
     _siteId: { state: true },
-    _siteIdInput: { state: true },
-    _showSettings: { state: true },
     _opportunities: { state: true },
     _visibleCount: { state: true },
     _loading: { state: true },
@@ -305,14 +294,13 @@ class BrandVisibilityApp extends LitElement {
     _pagePath: { state: true },
     _scope: { state: true },
     _matchingSuggestions: { state: true },
+    _matchingDone: { state: true },
   };
 
   constructor() {
     super();
     this._token = null;
     this._siteId = null;
-    this._siteIdInput = '';
-    this._showSettings = false;
     this._opportunities = [];
     this._visibleCount = PAGE_SIZE;
     this._loading = false;
@@ -325,8 +313,9 @@ class BrandVisibilityApp extends LitElement {
     this._showFilters = false;
     this._expanded = new Set();
     this._pagePath = null; // the currently-open DA document's path (e.g. "/blog/my-post"), if known
-    this._scope = 'all'; // 'page' (only opportunities with a NEW suggestion for _pagePath) | 'all'
+    this._scope = 'all'; // 'page' (only opportunities with a NEW suggestion for _pagePath) | 'all' — set from _pagePath in _init()
     this._matchingSuggestions = {}; // { [oppId]: { id, data }[] } — NEW suggestions matching _pagePath, once loaded
+    this._matchingDone = false; // flips true once the suggestion-matching pass finishes (even if nothing matched)
     // Non-reactive
     this._apiBase = DEFAULT_API_BASE_URL;
     this._actions = null;
@@ -334,7 +323,6 @@ class BrandVisibilityApp extends LitElement {
     this._site = null; // DA project repo (slug), used for drafts + site-id storage key
     this._draftsStarted = false;
     this._suggestionsStarted = false;
-    this._scopeDefaulted = false;
   }
 
   createRenderRoot() {
@@ -368,7 +356,7 @@ class BrandVisibilityApp extends LitElement {
 
   async _init() {
     const params = new URLSearchParams(window.location.search);
-    const apiOverride = params.get('spacecat-api');
+    const apiOverride = params.get('llmo-api');
     if (apiOverride) this._apiBase = apiOverride.replace(/\/$/, '');
 
     try {
@@ -410,8 +398,18 @@ class BrandVisibilityApp extends LitElement {
     }
     if (pagePathOverride) this._pagePath = toPagePath(pagePathOverride);
 
+    // When a page path is known, scope to it from the start — otherwise the
+    // full site-wide list would flash while suggestions are still being matched
+    // against the open page. _visibleOpportunities() already filters page-scope
+    // rows to matched suggestions, which are empty until matching completes, so
+    // this naturally renders an empty (not "all") list during that window.
+    this._scope = this._pagePath ? 'page' : 'all';
+
+    // The site ID is configured purely via the ?site-id= URL param — once seen,
+    // it's cached so reloads don't need the param repeated, but there's no in-app
+    // UI for it: change it by editing the URL.
+    if (siteIdOverride) this._saveSiteId(siteIdOverride);
     this._siteId = siteIdOverride || this._loadSiteId();
-    this._siteIdInput = this._siteId || '';
 
     if (this._token && this._siteId) this._fetchOpportunities();
   }
@@ -434,21 +432,6 @@ class BrandVisibilityApp extends LitElement {
     } catch {
       /* ignore */
     }
-  }
-
-  _submitSiteId() {
-    const siteId = this._siteIdInput.trim();
-    if (!siteId) return;
-    this._siteId = siteId;
-    this._saveSiteId(siteId);
-    this._showSettings = false;
-    this._opportunities = [];
-    this._visibleCount = PAGE_SIZE;
-    this._draftsStarted = false;
-    this._suggestionsStarted = false;
-    this._scopeDefaulted = false;
-    this._matchingSuggestions = {};
-    this._fetchOpportunities();
   }
 
   async _fetchOpportunities() {
@@ -483,11 +466,7 @@ class BrandVisibilityApp extends LitElement {
     this._suggestionsStarted = true;
     withConcurrency(this._opportunities, SUGGESTIONS_CONCURRENCY, (o) => this._fetchOpportunitySuggestions(o.id))
       .then(() => {
-        if (!this._scopeDefaulted) {
-          this._scopeDefaulted = true;
-          this._scope = 'page';
-          this._visibleCount = PAGE_SIZE;
-        }
+        this._matchingDone = true;
       });
   }
 
@@ -695,7 +674,7 @@ class BrandVisibilityApp extends LitElement {
 
   _renderPageScopeBanner() {
     if (!this._pagePath) return nothing;
-    const loading = this._suggestionsStarted && !this._scopeDefaulted;
+    const loading = this._suggestionsStarted && !this._matchingDone;
     return html`
       <div class="bv-scope-banner">
         <span>
@@ -837,9 +816,6 @@ class BrandVisibilityApp extends LitElement {
         ${canExpand && open
           ? html`
               <div class="opp-detail">
-                ${o.description
-                  ? html`<div><p class="opp-detail-label">Why it matters</p><p>${this._renderWithLinks(o.description)}</p></div>`
-                  : nothing}
                 ${showSuggestions
                   ? suggestions.map((s) => renderSuggestionData(o.type, s.data))
                   : html`
@@ -880,37 +856,14 @@ class BrandVisibilityApp extends LitElement {
     `;
   }
 
-  _renderSettings() {
-    return html`
-      <div class="card">
-        <p class="opp-detail-label">SpaceCat site ID</p>
-        <div class="bv-setup-row">
-          <input
-            type="text"
-            placeholder="e.g. d8db1956-b24c-4ad7-bdb6-6f5a90d89edc"
-            .value=${this._siteIdInput}
-            @input=${(e) => {
-              this._siteIdInput = e.target.value;
-            }}
-            @keydown=${(e) => {
-              if (e.key === 'Enter') this._submitSiteId();
-            }}
-          />
-          <sl-button class="ew-fill-accent" @click=${() => this._submitSiteId()}>Save</sl-button>
-        </div>
-        <p class="bv-setup-hint">
-          Find this via the SpaceCat API (GET /sites/by-base-url/{base64 site URL}) or ask your SpaceCat admin.
-        </p>
-      </div>
-    `;
-  }
-
   _renderContent() {
     if (!this._token) {
       return html`<div class="card"><p>Sign in to Experience Workspace to see your brand visibility opportunities.</p></div>`;
     }
-    if (!this._siteId || this._showSettings) {
-      return this._renderSettings();
+    if (!this._siteId) {
+      return html`<div class="card">
+        <p>No LLMO site ID configured. Add <code>?site-id=&lt;your-site-id&gt;</code> to this page's URL.</p>
+      </div>`;
     }
     if (this._loading) {
       return html`<div class="card">
@@ -984,19 +937,6 @@ class BrandVisibilityApp extends LitElement {
     return html`
       <div class="app-header">
         <h3>Brand Visibility</h3>
-        ${this._token && this._siteId
-          ? html`<button
-              type="button"
-              class="bv-settings-btn"
-              title="Change SpaceCat site"
-              aria-label="Change SpaceCat site"
-              @click=${() => {
-                this._showSettings = !this._showSettings;
-              }}
-            >
-              ${gearIcon()}
-            </button>`
-          : nothing}
       </div>
       ${this._renderContent()}
     `;
