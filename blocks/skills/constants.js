@@ -28,7 +28,7 @@ const TAB_DESCRIPTIONS = {
 
 /** Per-tab metadata for the "new" button label and the opener method name. */
 const TAB_ACTIONS = {
-  [TAB_SKILLS]: { btnLabel: '+ New Skill', opener: 'openNewSkillEditor', canWriteKey: 'canWrite' },
+  [TAB_SKILLS]: { btnLabel: 'Upload New Skill', opener: 'onPickSkillFile', canWriteKey: 'canWrite' },
   [TAB_AGENTS]: { btnLabel: 'Browse Marketplace', disabled: true, icon: 'storefront' },
   [TAB_PROMPTS]: { btnLabel: '+ New Prompt', opener: 'openNewEditor' },
   [TAB_MCPS]: { btnLabel: '+ Register MCP', opener: 'openNewMcpEditor' },

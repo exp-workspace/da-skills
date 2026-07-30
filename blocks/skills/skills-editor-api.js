@@ -565,29 +565,110 @@ export async function fetchSkillFileFromAo(skillName, path = 'SKILL.md') {
 }
 
 /**
- * Deletes a personal ("owner"-scope) skill via AO's per-user override API —
- * mirrors aep-ai's reference web client (services/web/hooks/use-user-overrides.ts
- * disableSkill): POST /api/v1/overrides/user/skills/{name}/disable removes the
- * skill from this user's installed sources going forward. Only meaningful for
- * scope: "owner" skills — application/tenant/platform-scope skills aren't
- * owned by the caller and have no personal override to write.
+ * Uploads a SKILL.md file as a new personal skill via AO's presigned-upload
+ * flow — mirrors aep-ai's reference web client (services/web/lib/upload-presigned.ts
+ * uploadToPresignedUrl with category: "skill"): initiate (POST /api/v1/files/upload),
+ * PUT the raw bytes to the returned presigned URL, then finalize
+ * (POST /api/v1/files/{file_id}/finalize?manifest_id=...), which installs the
+ * skill server-side. A 409 with needs_confirmation means a skill of that name
+ * already exists for this user (not auto-overwritten here).
  */
-export async function disablePersonalSkillOverride(id) {
+export async function uploadSkillFileToAo(file) {
   const ctx = await aoAuthContext();
   if (!ctx) return { ok: false, error: 'Not signed in' };
+
   try {
-    const resp = await fetch(
-      `${ctx.base}/api/v1/overrides/user/skills/${encodeURIComponent(id)}/disable`,
+    const initResp = await fetch(`${ctx.base}/api/v1/files/upload`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${ctx.token}`,
+        'x-tenant-id': ctx.orgId,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        content_type: file.type || 'text/markdown',
+        scope: 'user',
+        category: 'skill',
+        item_name: file.name.replace(/\.md$/i, ''),
+      }),
+    });
+    if (!initResp.ok) return { ok: false, error: `Upload failed (${initResp.status})` };
+    const { upload_url: uploadUrl, file_id: fileId } = await initResp.json();
+    if (!uploadUrl || !fileId) return { ok: false, error: 'Upload service returned an invalid response' };
+
+    const putResp = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'content-type': file.type || 'text/markdown',
+        ...(uploadUrl.includes('.blob.core.windows.net') ? { 'x-ms-blob-type': 'BlockBlob' } : {}),
+      },
+      body: file,
+    });
+    if (!putResp.ok) return { ok: false, error: `Storage upload failed (${putResp.status})` };
+
+    const finalizeResp = await fetch(
+      `${ctx.base}/api/v1/files/${fileId}/finalize?manifest_id=${AO_MANIFEST_ID}`,
       {
         method: 'POST',
         headers: {
           authorization: `Bearer ${ctx.token}`,
           'x-tenant-id': ctx.orgId,
-          'x-user-id': ctx.userId || '',
         },
       },
     );
-    if (!resp.ok) return { ok: false, error: `Delete failed (${resp.status})` };
+    if (!finalizeResp.ok) {
+      const body = await finalizeResp.json().catch(() => ({}));
+      if (finalizeResp.status === 409 && body?.needs_confirmation) {
+        return { ok: false, error: `A skill named "${body.skill_name || file.name}" already exists.` };
+      }
+      return { ok: false, error: body?.detail || `Finalize failed (${finalizeResp.status})` };
+    }
+    const finalizeData = await finalizeResp.json();
+    if (finalizeData?.skill_registration_ok === false) {
+      return { ok: false, error: finalizeData.detail || 'Skill could not be registered.' };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err?.message ?? err) };
+  }
+}
+
+/**
+ * Deletes a personal ("owner"-scope) skill by rewriting the user's `skills`
+ * override settings with that skill's entry removed from `sources` — mirrors
+ * aep-ai's reference web client (services/web/hooks/use-skill-sources.ts
+ * removeSource + use-user-overrides.ts setSetting): GET /api/v1/overrides/user
+ * to read the current sources array, then PUT
+ * /api/v1/overrides/user/settings/skills with { value: { ...skills, sources } }
+ * minus the deleted entry. Unlike the dedicated .../skills/{name}/disable
+ * route (which only hides a skill by adding it to disabled_skills, leaving
+ * the source in place), this actually removes the personal skill's source
+ * entry — the real "delete", confirmed against Coworker's own network calls.
+ */
+export async function removePersonalSkillSource(id) {
+  const ctx = await aoAuthContext();
+  if (!ctx) return { ok: false, error: 'Not signed in' };
+  const headers = {
+    authorization: `Bearer ${ctx.token}`,
+    'x-tenant-id': ctx.orgId,
+    'x-user-id': ctx.userId || '',
+  };
+  try {
+    const getResp = await fetch(`${ctx.base}/api/v1/overrides/user`, { headers });
+    if (!getResp.ok) return { ok: false, error: `Could not load overrides (${getResp.status})` };
+    const overrides = await getResp.json();
+    const skills = overrides?.settings?.skills || {};
+    const sources = Array.isArray(skills.sources)
+      ? skills.sources.filter((s) => s?.name !== id)
+      : [];
+
+    const putResp = await fetch(`${ctx.base}/api/v1/overrides/user/settings/skills`, {
+      method: 'PUT',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({ value: { ...skills, sources } }),
+    });
+    if (!putResp.ok) return { ok: false, error: `Delete failed (${putResp.status})` };
     return { ok: true };
   } catch (err) {
     return { ok: false, error: String(err?.message ?? err) };

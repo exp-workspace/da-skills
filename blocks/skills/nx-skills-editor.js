@@ -8,7 +8,8 @@ import {
   fetchDaConfigSheets,
   loadSkillsFromAo,
   fetchSkillFileFromAo,
-  disablePersonalSkillOverride,
+  uploadSkillFileToAo,
+  removePersonalSkillSource,
   AO_SCOPE_PERSONAL,
   upsertSkillInConfig,
   deleteSkillFromConfig,
@@ -785,11 +786,28 @@ class NxSkillsEditor extends LitElement {
     this._isEditorOpen = true;
   }
 
-  _openNewSkillEditor() {
-    this._editorTriggerSelector = this._captureTriggerSelector();
-    this._clearForm();
-    if (this._catalogTab !== 'agents') this._catalogTab = 'skills';
-    this._isEditorOpen = true;
+  _onPickSkillFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.md,text/markdown';
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (file) this._onSkillFileSelected(file);
+    }, { once: true });
+    input.click();
+  }
+
+  async _onSkillFileSelected(file) {
+    this._isSaveBusy = true;
+    const result = await uploadSkillFileToAo(file);
+    this._isSaveBusy = false;
+
+    if (!result.ok) {
+      this._setStatus(result.error || 'Failed to upload skill', STATUS_TYPE.ERR);
+      return;
+    }
+    this._setStatus('Skill uploaded');
+    await this._reload();
   }
 
   _openNewMcpEditor() {
@@ -963,7 +981,7 @@ class NxSkillsEditor extends LitElement {
     if (!await this._confirm('skill', id)) return;
     this._isSaveBusy = true;
 
-    const result = await disablePersonalSkillOverride(id);
+    const result = await removePersonalSkillSource(id);
     this._isSaveBusy = false;
 
     if (!result.ok) {
@@ -1716,7 +1734,7 @@ class NxSkillsEditor extends LitElement {
       getAgentToolIds: (agent, isBuiltin) => this._agentToolIds(agent, isBuiltin),
       parseToolId: (toolId) => this._parseToolId(toolId),
       // ── TAB_ACTIONS openers ────────────────────────────────────────────────
-      openNewSkillEditor: () => this._openNewSkillEditor(),
+      onPickSkillFile: () => this._onPickSkillFile(),
       openNewAgentEditor: () => this._openNewAgentEditor(),
       openNewEditor: () => this._openNewEditor(),
       openNewMcpEditor: () => this._openNewMcpEditor(),
