@@ -6,7 +6,7 @@
  * adapted for nx2 imports and the skills-editor naming convention.
  */
 
-import { DA_ORIGIN, daFetch, getToken } from './utils/da-fetch.js';
+import { DA_ORIGIN, daFetch, getToken, waitForImsToken } from './utils/da-fetch.js';
 import { parseSheetBoolean, normaliseRowKey, isSafeId, isSafeSubPath } from './utils/sheet-utils.js';
 
 // ─── agent origin ───────────────────────────────────────────────────────────
@@ -499,14 +499,18 @@ function parseAoSkillsResponse(json) {
   if (!skills) return null;
   return skills
     .filter((s) => !s?.hidden && s?.user_invocable !== false)
-    .map((s) => s?.name)
-    .filter((s) => typeof s === 'string')
-    .map((s) => s.trim())
-    .filter((s) => /^[a-z0-9][a-z0-9_-]{1,60}$/i.test(s));
+    .map((s) => ({
+      id: String(s?.name || '').trim(),
+      scope: s?.scope,
+      description: String(s?.description || '').trim(),
+      displayName: String(s?.display_name || '').trim(),
+      lineCount: Number.isFinite(s?.lineCount) ? s.lineCount : 0,
+    }))
+    .filter((s) => /^[a-z0-9][a-z0-9_-]{1,60}$/i.test(s.id));
 }
 
 export async function fetchSkillsFromAo() {
-  const token = getToken();
+  const token = await waitForImsToken();
   if (!token) return null;
   try {
     const profile = await window.adobeIMS?.getProfile();
@@ -526,24 +530,42 @@ export async function fetchSkillsFromAo() {
 }
 
 /**
- * Same { map, statuses } shape as loadSkillsWithStatuses, but the id list comes
- * from AO's catalog. Falls back to the DA-only list if AO is unreachable.
+ * Extends loadSkillsWithStatuses' { map, statuses } shape with AO-only fields:
+ * `scopes` ("owner" | "application" | ... — identifies personal skills),
+ * `descriptions`, `displayNames`, and `lineCounts`. The id list comes from
+ * AO's catalog; falls back to the plain DA-only shape (empty AO fields) if AO
+ * is unreachable. Content/status still come from the config sheet only — no
+ * .da/skills/*.md reads.
  */
-export async function loadSkillsFromAo(org, site, loadedConfig = null, options = {}) {
-  const [aoIds, daResult] = await Promise.all([
+export async function loadSkillsFromAo(org, site, loadedConfig = null) {
+  const [aoSkills, daResult] = await Promise.all([
     fetchSkillsFromAo(),
-    loadSkillsWithStatuses(org, site, loadedConfig, options),
+    loadSkillsWithStatuses(org, site, loadedConfig, { includeMdFiles: false }),
   ]);
-  if (!aoIds) return daResult;
+  if (!aoSkills) {
+    return {
+      ...daResult, scopes: {}, descriptions: {}, displayNames: {}, lineCounts: {},
+    };
+  }
 
   const map = {};
   const statuses = {};
-  aoIds.forEach((id) => {
+  const scopes = {};
+  const descriptions = {};
+  const displayNames = {};
+  const lineCounts = {};
+  aoSkills.forEach(({ id, scope, description, displayName, lineCount }) => {
     map[id] = daResult.map[id] || '';
     statuses[id] = daResult.statuses[id] || 'approved';
+    scopes[id] = scope;
+    descriptions[id] = description;
+    displayNames[id] = displayName || id;
+    lineCounts[id] = lineCount;
   });
-  return { map, statuses };
+  return { map, statuses, scopes, descriptions, displayNames, lineCounts };
 }
+
+export const AO_SCOPE_PERSONAL = 'owner';
 
 function skillKeyMatch(id) {
   return (r) => normaliseRowKey(r) === id;

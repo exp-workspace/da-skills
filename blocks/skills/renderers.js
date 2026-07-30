@@ -25,6 +25,7 @@ import {
   isSensitiveHeaderName,
   skillRowEnabled,
   skillRowStatus,
+  AO_SCOPE_PERSONAL,
   DA_SKILLS_EDITOR_PROMPT_ADD_TO_CHAT,
   DA_SKILLS_LAB_PROMPT_ADD_TO_CHAT,
 } from './skills-editor-api.js';
@@ -135,14 +136,12 @@ function renderViewToggle(vm) {
 }
 
 function renderSkillCard(vm, id) {
-  const body = vm.skills[id] || '';
-  const title = extractTitle(body);
-  const status = vm.skillStatuses[id] || STATUS.APPROVED;
+  const description = vm.skillDescriptions[id] || '';
+  const displayName = vm.skillDisplayNames[id] || id;
   const isViewing = vm.viewingSkillId === id;
-  const isDraft = status === STATUS.DRAFT;
+  const isPersonal = vm.skillScopes[id] === AO_SCOPE_PERSONAL;
   const usedBy = agentsUsingSkill(vm, id);
-  const approxTokens = Math.round(body.length / 4);
-  const tokenLabel = approxTokens >= 1000 ? `~${Math.round(approxTokens / 1000)}k` : `~${approxTokens}`;
+  const lineCount = vm.skillLineCounts[id] || 0;
 
   return html`
     <article class="plugin-card ${isViewing ? 'is-selected' : ''}"
@@ -157,28 +156,28 @@ function renderSkillCard(vm, id) {
       <header class="plugin-card-top">
         <span class="plugin-card-pill">${SKILL_ICON}</span>
         <div class="plugin-card-identity">
-          <span class="plugin-card-name">${id}</span>
+          <span class="plugin-card-name">${displayName}</span>
         </div>
       </header>
-      ${title ? html`<p class="plugin-card-desc">${title}</p>` : nothing}
+      ${description ? html`<p class="plugin-card-desc">${description}</p>` : nothing}
       <footer class="plugin-card-meta">
         ${usedBy.length ? html`
           ${usedBy.map((name) => html`<span class="plugin-card-count">⚡ ${name}</span>`)}
         ` : nothing}
-        <span class="plugin-card-badge">${isDraft ? 'DRAFT' : 'APPROVED'}</span>
-        <span class="plugin-card-count" title="Approximate token count (1 token ≈ 4 chars)">${tokenLabel}</span>
+        ${isPersonal ? html`<span class="plugin-card-badge">PERSONAL</span>` : nothing}
+        <span class="plugin-card-count" title="Line count">${lineCount} lines</span>
       </footer>
     </article>
   `;
 }
 
 function renderSkillRow(vm, id) {
-  const body = vm.skills[id] || '';
-  const title = extractTitle(body);
+  const description = vm.skillDescriptions[id] || '';
+  const displayName = vm.skillDisplayNames[id] || id;
   const isViewing = vm.viewingSkillId === id;
+  const isPersonal = vm.skillScopes[id] === AO_SCOPE_PERSONAL;
   const usedBy = agentsUsingSkill(vm, id);
-  const approxTokens = Math.round(body.length / 4);
-  const tokenLabel = approxTokens >= 1000 ? `~${Math.round(approxTokens / 1000)}k` : `~${approxTokens}`;
+  const lineCount = vm.skillLineCounts[id] || 0;
 
   return html`
     <div class="catalog-row ${isViewing ? 'is-selected' : ''}" role="button"
@@ -192,14 +191,15 @@ function renderSkillRow(vm, id) {
       <span class="catalog-row-pill">${SKILL_ICON}</span>
       <div class="catalog-row-body">
         <div class="catalog-row-title-line">
-          <span class="catalog-row-name">${id}</span>
+          <span class="catalog-row-name">${displayName}</span>
+          ${isPersonal ? html`<span class="catalog-row-meta">PERSONAL</span>` : nothing}
           ${usedBy.length ? html`
             <span class="catalog-row-meta">⚡ ${usedBy[0]}${usedBy.length > 1 ? ` +${usedBy.length - 1}` : ''}</span>
           ` : nothing}
         </div>
-        ${title ? html`<span class="catalog-row-desc">${title}</span>` : nothing}
+        ${description ? html`<span class="catalog-row-desc">${description}</span>` : nothing}
       </div>
-      <span class="catalog-row-meta" title="Approximate token count (1 token ≈ 4 chars)">${tokenLabel}</span>
+      <span class="catalog-row-meta" title="Line count">${lineCount} lines</span>
       ${DRILL_CHEVRON}
     </div>
   `;
@@ -214,7 +214,7 @@ function renderSkillDetail(vm) {
   const body = vm.skills[id] || '';
   const fm = parseFrontmatter(body);
   const name = fm?.fields?.name || id;
-  const description = fm?.fields?.description || extractTitle(body) || '';
+  const description = vm.skillDescriptions[id] || fm?.fields?.description || extractTitle(body) || '';
   const status = vm.skillStatuses[id] || STATUS.APPROVED;
   const isDraft = status === STATUS.DRAFT;
   const usedBy = agentsUsingSkill(vm, id);
@@ -1028,13 +1028,14 @@ export function renderSkillsCatalog(vm) {
   const ids = Object.keys(vm.skills);
   const searchQuery = vm.promptSearch.trim().toLowerCase();
 
-  let filtered = vm.catalogFilter === 'all' ? ids
-    : ids.filter((id) => vm.skillStatuses[id] === vm.catalogFilter);
+  let filtered = vm.catalogFilter === 'personal'
+    ? ids.filter((id) => vm.skillScopes[id] === AO_SCOPE_PERSONAL)
+    : ids;
 
   if (searchQuery) {
     filtered = filtered.filter((id) => {
-      const title = extractTitle(vm.skills[id]).toLowerCase();
-      return id.toLowerCase().includes(searchQuery) || title.includes(searchQuery);
+      const description = (vm.skillDescriptions[id] || '').toLowerCase();
+      return id.toLowerCase().includes(searchQuery) || description.includes(searchQuery);
     });
   }
 
@@ -1042,18 +1043,16 @@ export function renderSkillsCatalog(vm) {
 
   return html`
     <div class="catalog-toolbar" role="toolbar" aria-label="Filter skills">
-      ${[STATUS.APPROVED, STATUS.DRAFT].map((status) => html`
-        <button type="button"
-          class="filter-chip ${vm.catalogFilter === status ? 'is-active' : ''}"
-          aria-pressed=${vm.catalogFilter === status ? 'true' : 'false'}
-          @click=${() => vm.setCatalogFilter(status)}
-        >${status.charAt(0).toUpperCase() + status.slice(1)}</button>
-      `)}
       <button type="button"
         class="filter-chip ${vm.catalogFilter === 'all' ? 'is-active' : ''}"
         aria-pressed=${vm.catalogFilter === 'all' ? 'true' : 'false'}
         @click=${() => vm.setCatalogFilter('all')}
       >All</button>
+      <button type="button"
+        class="filter-chip ${vm.catalogFilter === 'personal' ? 'is-active' : ''}"
+        aria-pressed=${vm.catalogFilter === 'personal' ? 'true' : 'false'}
+        @click=${() => vm.setCatalogFilter('personal')}
+      >Personal</button>
       ${renderViewToggle(vm)}
     </div>
     ${!filtered.length ? html`<div class="empty">No skills found</div>` : nothing}

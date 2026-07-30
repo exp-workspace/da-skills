@@ -454,6 +454,7 @@
   font-size: var(--s2-body-size-s);
   color: var(--s2-gray-800);
   line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .skill-detail-view-md {

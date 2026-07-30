@@ -58,6 +58,26 @@ export function getToken() {
   try { return window.adobeIMS?.getAccessToken()?.token; } catch { return null; }
 }
 
+/**
+ * da-live boots IMS asynchronously and doesn't wait for it before loading blocks
+ * (see da-live/scripts/scripts.js), so getToken()'s single synchronous read can
+ * come back empty for a beat after decorate() runs even when the user is signed
+ * in. Poll briefly instead — mirrors da-live's own getAuthToken() gating logic.
+ */
+export async function waitForImsToken(timeoutMs = 4000) {
+  const existing = getToken();
+  if (existing) return existing;
+  if (!localStorage.getItem('nx-ims')) return null;
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => { setTimeout(resolve, 150); });
+    const token = getToken();
+    if (token) return token;
+  }
+  return null;
+}
+
 export async function daFetch(url, opts = {}) {
   const nextOpts = {
     ...opts,

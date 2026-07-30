@@ -7,7 +7,6 @@ import './shared/popover/popover.js';
 import {
   fetchDaConfigSheets,
   loadSkillsFromAo,
-  syncOrphanSkillsToConfig,
   upsertSkillInConfig,
   deleteSkillFromConfig,
   writeSkillMdFile,
@@ -75,6 +74,10 @@ class NxSkillsEditor extends LitElement {
     _catalogFilter: { state: true },
     _skills: { state: true },
     _skillStatuses: { state: true },
+    _skillScopes: { state: true },
+    _skillDescriptions: { state: true },
+    _skillDisplayNames: { state: true },
+    _skillLineCounts: { state: true },
     _prompts: { state: true },
     _agents: { state: true },
     _agentRows: { state: true },
@@ -142,8 +145,6 @@ class NxSkillsEditor extends LitElement {
 
   _chatLoaded = false;
 
-  _syncOrphansInFlight = false;
-
   _agentsLoadInFlight = false;
 
   _mcpToolsLoadInFlight = false;
@@ -171,6 +172,10 @@ class NxSkillsEditor extends LitElement {
     this._catalogFilter = 'all';
     this._skills = {};
     this._skillStatuses = {};
+    this._skillScopes = {};
+    this._skillDescriptions = {};
+    this._skillDisplayNames = {};
+    this._skillLineCounts = {};
     this._prompts = [];
     this._agents = [];
     this._agentRows = [];
@@ -287,7 +292,6 @@ class NxSkillsEditor extends LitElement {
         await this._reload({
           silent: true,
           showRefreshIndicator: true,
-          includeMdFiles: false,
         });
       } else {
         await this._reload();
@@ -374,6 +378,10 @@ class NxSkillsEditor extends LitElement {
     const snapshot = {
       skills: this._skills,
       skillStatuses: this._skillStatuses,
+      skillScopes: this._skillScopes,
+      skillDescriptions: this._skillDescriptions,
+      skillDisplayNames: this._skillDisplayNames,
+      skillLineCounts: this._skillLineCounts,
       prompts: this._prompts,
       agentRows: this._agentRows,
       mcpRows: this._mcpRows,
@@ -396,6 +404,10 @@ class NxSkillsEditor extends LitElement {
       if (!snap || typeof snap !== 'object') return false;
       this._skills = snap.skills || {};
       this._skillStatuses = snap.skillStatuses || {};
+      this._skillScopes = snap.skillScopes || {};
+      this._skillDescriptions = snap.skillDescriptions || {};
+      this._skillDisplayNames = snap.skillDisplayNames || {};
+      this._skillLineCounts = snap.skillLineCounts || {};
       this._prompts = Array.isArray(snap.prompts) ? snap.prompts : [];
       this._agentRows = Array.isArray(snap.agentRows) ? snap.agentRows : [];
       this._mcpRows = Array.isArray(snap.mcpRows) ? snap.mcpRows : [];
@@ -476,34 +488,11 @@ class NxSkillsEditor extends LitElement {
 
   // ─── data loading ─────────────────────────────────────────────────────────
 
-  _scheduleOrphanSkillSync() {
-    if (this._syncOrphansInFlight || !this._org || !this._site) return;
-    const loadKey = this._loadedKey;
-    this._syncOrphansInFlight = true;
-    syncOrphanSkillsToConfig(this._org, this._site)
-      .then((backfilled) => {
-        const changed = backfilled?.configBackfilled?.length || backfilled?.filesWritten?.length;
-        if (!changed) return;
-        // eslint-disable-next-line no-console
-        console.info('[skills-editor] background sync:', backfilled);
-        if (`${this._org}/${this._site}` === loadKey) {
-          this._reload({
-            silent: true,
-            showRefreshIndicator: true,
-            includeMdFiles: true,
-          }).catch(() => {});
-        }
-      })
-      .catch(() => { /* non-fatal */ })
-      .finally(() => { this._syncOrphansInFlight = false; });
-  }
-
   async _reload(options = {}) {
     if (!this._org || !this._site) return;
     const {
       silent = false,
       showRefreshIndicator = false,
-      includeMdFiles = true,
     } = options;
     if (!silent) this._isLoading = true;
     if (showRefreshIndicator) this._refreshingCount += 1;
@@ -512,7 +501,7 @@ class NxSkillsEditor extends LitElement {
       const configResult = await fetchDaConfigSheets(this._org, this._site);
       const permKey = `${this._org}/${this._site}`;
       const [skillsResult, hasWritePermission] = await Promise.all([
-        loadSkillsFromAo(this._org, this._site, configResult, { includeMdFiles }),
+        loadSkillsFromAo(this._org, this._site, configResult),
         this._canWriteKey === permKey
           ? Promise.resolve(this._canWrite)
           : fetchSkillsPermission(this._org, this._site),
@@ -524,6 +513,10 @@ class NxSkillsEditor extends LitElement {
       }
       this._skills = skillsResult.map;
       this._skillStatuses = skillsResult.statuses;
+      this._skillScopes = skillsResult.scopes || {};
+      this._skillDescriptions = skillsResult.descriptions || {};
+      this._skillDisplayNames = skillsResult.displayNames || {};
+      this._skillLineCounts = skillsResult.lineCounts || {};
       this._prompts = configResult.json?.prompts?.data || [];
       this._agentRows = configResult.agentRows || [];
       this._mcpRows = configResult.mcpRows || [];
@@ -533,7 +526,6 @@ class NxSkillsEditor extends LitElement {
       this._saveDataSnapshot();
 
       this._applySuggestion();
-      this._scheduleOrphanSkillSync();
     } finally {
       if (!silent) this._isLoading = false;
       if (showRefreshIndicator) this._refreshingCount = Math.max(0, this._refreshingCount - 1);
@@ -1612,6 +1604,10 @@ class NxSkillsEditor extends LitElement {
       promptSearch: this._promptSearch,
       skills: this._skills,
       skillStatuses: this._skillStatuses,
+      skillScopes: this._skillScopes,
+      skillDescriptions: this._skillDescriptions,
+      skillDisplayNames: this._skillDisplayNames,
+      skillLineCounts: this._skillLineCounts,
       prompts: this._prompts,
       agents: this._agents,
       agentRows: this._agentRows,
