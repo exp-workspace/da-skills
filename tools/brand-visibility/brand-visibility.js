@@ -530,7 +530,7 @@ class BrandVisibilityApp extends LitElement {
       const labels = extractTocLabels(suggestions[0]?.data?.transformRules);
       return [
         'Update the page content - add below table of contents:',
-        ...labels.map((l) => `- ${l}`),
+        ...labels.map((l, i) => `${i + 1}. ${l}`),
       ].join('\n');
     }
     if (o.type === 'summarization') {
