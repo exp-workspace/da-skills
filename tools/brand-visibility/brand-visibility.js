@@ -170,6 +170,18 @@ function extractTocLabels(transformRules) {
   return labels;
 }
 
+// "summarization" suggestions don't carry a separate key-points array — `keyPoints`
+// is a boolean flag, and when true, `summarizationText` itself is formatted as a
+// markdown bullet list rather than prose. Pull those bullets out for display.
+function extractBulletPoints(text) {
+  if (!text) return [];
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /^[*-]\s+/.test(line))
+    .map((line) => line.replace(/^[*-]\s+/, ''));
+}
+
 // Per-opportunity-type suggestion renderers — `suggestion.data` has a different
 // shape for each SpaceCat opportunity type (verified against live data), so a
 // generic key/value dump reads poorly for the ones a user actually needs to act on.
@@ -205,12 +217,10 @@ function renderTocSuggestion(data) {
   const labels = extractTocLabels(data.transformRules);
   return html`
     <div class="opp-suggestion opp-suggestion--toc">
-      ${data.explanation ? html`<p class="opp-suggestion-summary">${data.explanation}</p>` : nothing}
       ${labels.length
-        ? html`<p class="opp-detail-label">Proposed table of contents</p>
-            <ol class="opp-toc-list">
-              ${labels.map((l) => html`<li>${l}</li>`)}
-            </ol>`
+        ? html`<ol class="opp-toc-list">
+            ${labels.map((l) => html`<li>${l}</li>`)}
+          </ol>`
         : nothing}
     </div>
   `;
@@ -218,22 +228,27 @@ function renderTocSuggestion(data) {
 
 function renderSummarizationSuggestion(data) {
   const summaryText = data.summarizationText || data.aiGeneratedSummarizationText;
-  const evidence = (Array.isArray(data.sourceEvidence) ? data.sourceEvidence : []).filter(
-    (e) => e && e !== '[no-evidence]',
-  );
+  const bullets = data.keyPoints === true ? extractBulletPoints(summaryText) : [];
   return html`
     <div class="opp-suggestion opp-suggestion--summarization">
-      ${data.title ? html`<p class="opp-suggestion-title">${data.title}</p>` : nothing}
-      ${summaryText ? html`<p class="opp-suggestion-summary">${renderRichText(summaryText)}</p>` : nothing}
-      ${evidence.length
-        ? html`<p class="opp-detail-label">Source evidence</p>
+      ${bullets.length
+        ? html`<p class="opp-suggestion-summary"><strong>Key points:</strong></p>
             <ul class="opp-evidence-list">
-              ${evidence.map((e) => html`<li>${e}</li>`)}
+              ${bullets.map((b) => html`<li>${renderBold(b)}</li>`)}
             </ul>`
-        : nothing}
+        : summaryText
+          ? html`<p class="opp-suggestion-summary"><strong>Summary:</strong> ${renderRichText(summaryText)}</p>`
+          : nothing}
     </div>
   `;
 }
+
+// One-time intro line shown above a type's suggestion list (not repeated per
+// suggestion, since an opportunity can have several matching suggestions).
+const SUGGESTION_INTROS = {
+  summarization: 'Add the below summary suggestions to the page.',
+  toc: 'Add the Table of Contents below to the page',
+};
 
 const SUGGESTION_RENDERERS = {
   prerender: renderPrerenderSuggestion,
@@ -269,7 +284,6 @@ function normalize(o) {
     tags: tags.filter((t) => t.toLowerCase() !== 'iselmo'),
     isElmo: tags.some((t) => t.toLowerCase() === 'iselmo'),
     guidanceSteps: Array.isArray(o.guidance?.steps) ? o.guidance.steps : [],
-    runbook: o.runbook ?? null,
     data: o.data && typeof o.data === 'object' ? o.data : {},
     createdAt: o.createdAt ?? null,
     updatedAt: o.updatedAt ?? null,
@@ -511,7 +525,23 @@ class BrandVisibilityApp extends LitElement {
     }
   }
 
-  _buildPrompt(o) {
+  _buildPrompt(o, suggestions = []) {
+    if (o.type === 'toc') {
+      const labels = extractTocLabels(suggestions[0]?.data?.transformRules);
+      return [
+        'Update the page content - add below table of contents:',
+        ...labels.map((l) => `- ${l}`),
+      ].join('\n');
+    }
+    if (o.type === 'summarization') {
+      const data = suggestions[0]?.data ?? {};
+      const summaryText = data.summarizationText || data.aiGeneratedSummarizationText;
+      const bullets = data.keyPoints === true ? extractBulletPoints(summaryText) : [];
+      return [
+        'Update the page content - add below summary:',
+        bullets.length ? bullets.map((b) => `- ${b}`).join('\n') : (summaryText ?? ''),
+      ].join('\n');
+    }
     const lines = [
       `Opportunity: ${o.title}`,
       o.description ? `Description: ${o.description}` : null,
@@ -635,7 +665,7 @@ class BrandVisibilityApp extends LitElement {
       </div>`;
   }
 
-  _renderGenerateButton(o) {
+  _renderGenerateButton(o, suggestions = []) {
     const drafts = this._drafts[o.id];
     if (drafts?.loading || (drafts && drafts.items.length > 0)) return nothing;
     return html`
@@ -643,14 +673,14 @@ class BrandVisibilityApp extends LitElement {
         type="button"
         class="opp-generate-btn"
         @click=${() => {
-          const prompt = this._buildPrompt(o);
+          const prompt = this._buildPrompt(o, suggestions);
           // setPrompt opens the chat panel host-side and sets the prompt (relayed to
           // nx-open-chat-panel), so no separate open-chat message is needed.
           if (this._actions?.setPrompt) this._actions.setPrompt(prompt, { autoSend: true });
           else navigator.clipboard?.writeText(prompt).then(() => this._toast('Prompt copied to clipboard'));
         }}
       >
-        ${sparkleIcon()} Generate content
+        ${sparkleIcon()} Apply suggestion
       </button>`;
   }
 
@@ -817,7 +847,10 @@ class BrandVisibilityApp extends LitElement {
           ? html`
               <div class="opp-detail">
                 ${showSuggestions
-                  ? suggestions.map((s) => renderSuggestionData(o.type, s.data))
+                  ? html`
+                      ${SUGGESTION_INTROS[o.type] ? html`<p class="opp-suggestion-summary">${SUGGESTION_INTROS[o.type]}</p>` : nothing}
+                      ${suggestions.map((s) => renderSuggestionData(o.type, s.data))}
+                    `
                   : html`
                       <div><p class="opp-detail-label">Type</p><p>${typeLabel(o.type)}</p></div>
                       ${o.guidanceSteps.length
@@ -835,9 +868,8 @@ class BrandVisibilityApp extends LitElement {
                           </div>`
                         : nothing}
                     `}
-                ${o.runbook ? html`<a class="opp-source" href=${o.runbook} target="_blank" rel="noopener noreferrer">Runbook</a>` : nothing}
                 ${this._renderDrafts(o.id)}
-                <div class="opp-actions">${this._renderGenerateButton(o)}</div>
+                <div class="opp-actions">${this._renderGenerateButton(o, suggestions)}</div>
               </div>
             `
           : nothing}
