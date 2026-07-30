@@ -425,6 +425,7 @@
   flex-wrap: wrap;
   margin-top: auto;
   padding-top: var(--s2-spacing-75);
+  justify-content: flex-end;
 }
 
 .plugin-card-badge {

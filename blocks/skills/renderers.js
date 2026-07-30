@@ -164,7 +164,7 @@ function renderSkillCard(vm, id) {
         ${usedBy.length ? html`
           ${usedBy.map((name) => html`<span class="plugin-card-count">⚡ ${name}</span>`)}
         ` : nothing}
-        ${isPersonal ? html`<span class="plugin-card-badge">PERSONAL</span>` : nothing}
+        ${isPersonal ? html`<span class="plugin-card-badge">Personal</span>` : nothing}
         <span class="plugin-card-count" title="Line count">${lineCount} lines</span>
       </footer>
     </article>
@@ -192,12 +192,11 @@ function renderSkillRow(vm, id) {
       <div class="catalog-row-body">
         <div class="catalog-row-title-line">
           <span class="catalog-row-name">${displayName}</span>
-          ${isPersonal ? html`<span class="catalog-row-meta">PERSONAL</span>` : nothing}
+          ${isPersonal ? html`<span class="catalog-row-meta">Personal</span>` : nothing}
           ${usedBy.length ? html`
             <span class="catalog-row-meta">⚡ ${usedBy[0]}${usedBy.length > 1 ? ` +${usedBy.length - 1}` : ''}</span>
           ` : nothing}
         </div>
-        ${description ? html`<span class="catalog-row-desc">${description}</span>` : nothing}
       </div>
       <span class="catalog-row-meta" title="Line count">${lineCount} lines</span>
       ${DRILL_CHEVRON}
@@ -512,18 +511,18 @@ function renderDetailView(vm) {
         ${isAgent && !vm.isAgentViewTools ? renderAgentForm(vm) : nothing}
         ${isPrompt ? renderPromptForm(vm) : nothing}
         ${isMcp && (vm.editingMcpKey || !vm.viewingMcpServerId)
-          ? renderMcpForm(vm) : nothing}
+      ? renderMcpForm(vm) : nothing}
         ${isMcp && vm.viewingMcpServerId && !vm.editingMcpKey
-          ? renderMcpServerInfo(vm) : nothing}
+      ? renderMcpServerInfo(vm) : nothing}
         ${isMcp && (vm.viewingMcpServerId || vm.editingMcpKey)
-          ? renderMcpToolsList(vm) : nothing}
+      ? renderMcpToolsList(vm) : nothing}
         ${isMemory ? html`
           <p class="form-hint">.da/agent/memory.md</p>
           ${renderMemoryContent(vm)}
         ` : nothing}
       </div>
       ${(isSkill || (isAgent && !vm.isAgentViewTools) || isPrompt
-        || (isMcp && (!vm.viewingMcpServerId || vm.editingMcpKey))) ? html`
+      || (isMcp && (!vm.viewingMcpServerId || vm.editingMcpKey))) ? html`
         <div class="editor-footer">
           ${renderEditorFooter(vm, tab)}
         </div>
@@ -550,9 +549,9 @@ function renderCatalogView(vm) {
             <button type="button" class="new-btn"
               ?disabled=${TAB_ACTIONS[tab].disabled || (TAB_ACTIONS[tab].canWriteKey && !vm[TAB_ACTIONS[tab].canWriteKey])}
               @click=${() => {
-                const { opener } = TAB_ACTIONS[tab];
-                if (opener && typeof vm[opener] === 'function') vm[opener]();
-              }}
+        const { opener } = TAB_ACTIONS[tab];
+        if (opener && typeof vm[opener] === 'function') vm[opener]();
+      }}
             >${ACTION_ICONS[TAB_ACTIONS[tab].icon] ? html`<span class="new-btn-icon">${ACTION_ICONS[TAB_ACTIONS[tab].icon]}</span>` : nothing}${TAB_ACTIONS[tab].btnLabel}</button>
           ` : nothing}
         </div>
@@ -584,8 +583,8 @@ export function renderListCol(vm) {
   return html`
     <div class="col col-list" role="region" aria-label="Catalog">
       ${vm.isEditorOpen || isMemoryDirect
-        ? renderDetailView(vm)
-        : renderCatalogView(vm)}
+      ? renderDetailView(vm)
+      : renderCatalogView(vm)}
     </div>
   `;
 }
@@ -693,30 +692,30 @@ export function renderAssociatedToolsSelector(vm) {
         <ul class="tools-group-list" aria-label="${ns} tools">
           ${!tools.length ? html`<li class="tool-item-empty">No tools match filter</li>` : nothing}
           ${tools.map((toolId) => {
-            const isActive = selected.has(toolId);
-            return html`
+      const isActive = selected.has(toolId);
+      return html`
               <li class="tool-item ${isActive ? 'is-active' : ''}">
                 <span class="tool-dot ${isActive ? 'is-dot-active' : 'is-dot-inactive'}" aria-hidden="true"></span>
                 <label class="tool-label-wrap" title=${toolId}>
                   <input type="checkbox" class="tool-checkbox"
                     .checked=${isActive}
                     @change=${(e) => {
-                      const prevTools = vm.formPromptTools ? [...vm.formPromptTools] : [];
-                      const next = new Set(prevTools);
-                      if (e.target.checked) next.add(toolId);
-                      else next.delete(toolId);
-                      vm.setFormPromptTools([...next]);
-                      const { serverId, toolName } = vm.parseToolId(toolId);
-                      vm.onToggleToolEnabled(serverId, toolName, e.target.checked, () => {
-                        vm.setFormPromptTools(prevTools);
-                      });
-                    }}
+          const prevTools = vm.formPromptTools ? [...vm.formPromptTools] : [];
+          const next = new Set(prevTools);
+          if (e.target.checked) next.add(toolId);
+          else next.delete(toolId);
+          vm.setFormPromptTools([...next]);
+          const { serverId, toolName } = vm.parseToolId(toolId);
+          vm.onToggleToolEnabled(serverId, toolName, e.target.checked, () => {
+            vm.setFormPromptTools(prevTools);
+          });
+        }}
                   >
                   <span class="tool-label">${toolId}</span>
                 </label>
               </li>
             `;
-          })}
+    })}
         </ul>
       </details>
     `;
@@ -770,8 +769,8 @@ export function renderMcpForm(vm) {
       <div class="mcp-auth-section ${hasSecret ? 'is-sensitive' : ''}">
         <p class="form-hint">HTTP headers (optional — e.g. Authorization, x-api-key)</p>
         ${headers.map((h, i) => {
-          const masked = isSensitiveHeaderName(h.name);
-          return html`
+    const masked = isSensitiveHeaderName(h.name);
+    return html`
             <div class="mcp-header-row">
               <input
                 type="text"
@@ -794,7 +793,7 @@ export function renderMcpForm(vm) {
               >✕</button>
             </div>
           `;
-        })}
+  })}
         <button type="button" class="action-btn mcp-header-add"
           @click=${() => vm.addMcpHeader()}
         >+ Add header</button>
@@ -847,10 +846,10 @@ export function renderMcpToolsList(vm) {
           <span class="mcp-error-hint">Did you mean:
             <a class="mcp-error-url" href="#"
               @click=${(e) => {
-                e.preventDefault();
-                vm.setMcpUrl(hint);
-                vm.onSetStatus(`URL updated to ${hint} — save to apply`, STATUS_TYPE.WARN);
-              }}
+            e.preventDefault();
+            vm.setMcpUrl(hint);
+            vm.onSetStatus(`URL updated to ${hint} — save to apply`, STATUS_TYPE.WARN);
+          }}
             >${hint}</a>?
           </span>
         ` : nothing}
@@ -870,13 +869,13 @@ export function renderMcpToolsList(vm) {
         >
       ` : nothing}
       ${!tools.length
-        ? html`<div class="empty ${source === 'error' ? 'empty-err' : ''}">${emptyMsg()}</div>`
-        : html`
+      ? html`<div class="empty ${source === 'error' ? 'empty-err' : ''}">${emptyMsg()}</div>`
+      : html`
           <ul class="tools-group-list" aria-label="Tools for ${serverId}">
             ${filtered.map((t) => {
-              const key = `${serverId}/${t.name}`;
-              const isEnabled = overrides[key] !== false;
-              return html`
+        const key = `${serverId}/${t.name}`;
+        const isEnabled = overrides[key] !== false;
+        return html`
                 <li class="tool-item ${isEnabled ? 'is-active' : ''}">
                   <label class="tool-label-wrap" title=${t.name}>
                     <input type="checkbox" class="tool-checkbox"
@@ -892,9 +891,9 @@ export function renderMcpToolsList(vm) {
                   </label>
                 </li>
               `;
-            })}
+      })}
             ${filtered.length === 0 && tools.length
-              ? html`<li class="tool-item-empty">No tools match filter</li>` : nothing}
+          ? html`<li class="tool-item-empty">No tools match filter</li>` : nothing}
           </ul>
         `}
     </div>
@@ -983,9 +982,9 @@ export function renderEditorFooter(vm, tab) {
           title="Insert prompt text into the chat input without sending"
           ?disabled=${vm.isSaveBusy || !vm.formPromptBody.trim()}
           @click=${() => {
-            vm.onDispatchPromptToChat(DA_SKILLS_EDITOR_PROMPT_ADD_TO_CHAT, vm.formPromptBody);
-            vm.onDispatchPromptToChat(DA_SKILLS_LAB_PROMPT_ADD_TO_CHAT, vm.formPromptBody);
-          }}
+        vm.onDispatchPromptToChat(DA_SKILLS_EDITOR_PROMPT_ADD_TO_CHAT, vm.formPromptBody);
+        vm.onDispatchPromptToChat(DA_SKILLS_LAB_PROMPT_ADD_TO_CHAT, vm.formPromptBody);
+      }}
         >Add to Chat</button>
         <button type="button" data-variant="secondary"
           title="Send prompt to the assistant immediately"
@@ -1078,8 +1077,8 @@ function renderDepTree(vm, agent, isBuiltin) {
         </div>
       `)}
       ${mcps.map((mcpId) => {
-        const tools = BUILTIN_TOOL_DETAILS[mcpId] || [];
-        return html`
+    const tools = BUILTIN_TOOL_DETAILS[mcpId] || [];
+    return html`
           <div class="dep-tree-node dep-tree-indent">
             <span class="dep-tree-connector">├─</span>
             <span class="entity-chip entity-chip-mcp">${mcpId}</span>
@@ -1097,7 +1096,7 @@ function renderDepTree(vm, agent, isBuiltin) {
             </div>
           ` : nothing}
         `;
-      })}
+  })}
     </div>
   `;
 }
@@ -1157,12 +1156,12 @@ export function renderPromptsCatalog(vm) {
   return html`
     <div class="prompt-list" role="list" aria-label="Prompts">
       ${prompts.map((row) => {
-        const title = row.title || '';
-        const isSelected = vm.isEditorOpen && vm.isFormPromptEdit
-          && vm.formPromptTitle === title;
-        const cat = (row.category || '').toLowerCase().trim();
-        const catClass = KNOWN_CATEGORY_CLASSES.has(cat) ? cat : 'default';
-        return html`
+    const title = row.title || '';
+    const isSelected = vm.isEditorOpen && vm.isFormPromptEdit
+      && vm.formPromptTitle === title;
+    const cat = (row.category || '').toLowerCase().trim();
+    const catClass = KNOWN_CATEGORY_CLASSES.has(cat) ? cat : 'default';
+    return html`
           <article role="listitem" data-testid="prompt-card" data-prompt-title=${title}>
             <div class="prompt-row ${isSelected ? 'is-selected' : ''}" role="button"
               tabindex="0"
@@ -1186,7 +1185,7 @@ export function renderPromptsCatalog(vm) {
             </div>
           </article>
         `;
-      })}
+  })}
     </div>
   `;
 }
@@ -1233,7 +1232,7 @@ function renderMcpCard(vm, s, isBuiltin) {
         ${transport ? html`<span class="plugin-card-badge">${transport}</span>` : nothing}
       </header>
       <footer class="plugin-card-meta">
-        <span class="plugin-card-badge">${badge}</span>
+        <span class="skill-detail-badge plugin-card-badge">Personal</span>
         <span class="plugin-card-count">${toolCount} tools</span>
         ${!isBuiltin ? html`
           <button type="button" class="plugin-card-action is-uninstall"
