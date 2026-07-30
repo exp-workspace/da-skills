@@ -468,6 +468,83 @@ export async function loadSkillsWithStatuses(org, site, loadedConfig = null, opt
   return mergeSkillsWithMdFiles(loaded.json[SKILLS_SHEET]?.data, org, site);
 }
 
+// ─── AO skills catalog (read-only id list — replaces the config-sheet list) ─
+// Mirrors chat-controller-ao.js's _fetchSkillsFromApi()/parseSkillsListResponse()
+// in da-nx: GET /api/v1/skills?manifest_id=experience-workspace, IMS bearer +
+// x-tenant-id (IMS Org ID, not the DA org slug). Content/status still come from
+// DA (config sheet + .da/skills/*.md) — AO only tells us which ids to show.
+
+const AO_HTTP_BASE = {
+  prod: 'https://agent-orchestrator-prod-va7.adobe.io',
+  stage: 'https://agent-orchestrator-stage-va7.adobe.io',
+};
+
+const AO_MANIFEST_ID = 'experience-workspace';
+
+function aoEnv() {
+  const { hostname } = window.location;
+  if (hostname.endsWith('.aem.live')) return 'prod';
+  if (!['--', 'local'].some((check) => hostname.includes(check))) return 'prod';
+  return 'stage';
+}
+
+// ims.js's own tenantId is a human-readable label, not the "ORGID@AdobeOrg" shape
+// AO's x-tenant-id expects — pull that from owningEntity instead, same as da-nx.
+function getImsOrgId(projectedProductContext) {
+  return projectedProductContext?.find((p) => p.prodCtx?.owningEntity)?.prodCtx.owningEntity;
+}
+
+function parseAoSkillsResponse(json) {
+  const skills = Array.isArray(json?.skills) ? json.skills : null;
+  if (!skills) return null;
+  return skills
+    .filter((s) => !s?.hidden && s?.user_invocable !== false)
+    .map((s) => s?.name)
+    .filter((s) => typeof s === 'string')
+    .map((s) => s.trim())
+    .filter((s) => /^[a-z0-9][a-z0-9_-]{1,60}$/i.test(s));
+}
+
+export async function fetchSkillsFromAo() {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const profile = await window.adobeIMS?.getProfile();
+    const orgId = getImsOrgId(profile?.projectedProductContext);
+    const base = AO_HTTP_BASE[aoEnv()] || AO_HTTP_BASE.stage;
+    const resp = await fetch(`${base}/api/v1/skills?manifest_id=${AO_MANIFEST_ID}`, {
+      headers: {
+        authorization: `Bearer ${token}`,
+        'x-tenant-id': orgId,
+      },
+    });
+    if (!resp.ok) return null;
+    return parseAoSkillsResponse(await resp.json());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Same { map, statuses } shape as loadSkillsWithStatuses, but the id list comes
+ * from AO's catalog. Falls back to the DA-only list if AO is unreachable.
+ */
+export async function loadSkillsFromAo(org, site, loadedConfig = null, options = {}) {
+  const [aoIds, daResult] = await Promise.all([
+    fetchSkillsFromAo(),
+    loadSkillsWithStatuses(org, site, loadedConfig, options),
+  ]);
+  if (!aoIds) return daResult;
+
+  const map = {};
+  const statuses = {};
+  aoIds.forEach((id) => {
+    map[id] = daResult.map[id] || '';
+    statuses[id] = daResult.statuses[id] || 'approved';
+  });
+  return { map, statuses };
+}
+
 function skillKeyMatch(id) {
   return (r) => normaliseRowKey(r) === id;
 }

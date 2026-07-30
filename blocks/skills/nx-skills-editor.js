@@ -6,7 +6,7 @@ import './shared/card/card.js';
 import './shared/popover/popover.js';
 import {
   fetchDaConfigSheets,
-  loadSkillsWithStatuses,
+  loadSkillsFromAo,
   syncOrphanSkillsToConfig,
   upsertSkillInConfig,
   deleteSkillFromConfig,
@@ -512,7 +512,7 @@ class NxSkillsEditor extends LitElement {
       const configResult = await fetchDaConfigSheets(this._org, this._site);
       const permKey = `${this._org}/${this._site}`;
       const [skillsResult, hasWritePermission] = await Promise.all([
-        loadSkillsWithStatuses(this._org, this._site, configResult, { includeMdFiles }),
+        loadSkillsFromAo(this._org, this._site, configResult, { includeMdFiles }),
         this._canWriteKey === permKey
           ? Promise.resolve(this._canWrite)
           : fetchSkillsPermission(this._org, this._site),
