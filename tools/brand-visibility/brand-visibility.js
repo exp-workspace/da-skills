@@ -534,12 +534,20 @@ class BrandVisibilityApp extends LitElement {
       ].join('\n');
     }
     if (o.type === 'summarization') {
-      const data = suggestions[0]?.data ?? {};
-      const summaryText = data.summarizationText || data.aiGeneratedSummarizationText;
-      const bullets = data.keyPoints === true ? extractBulletPoints(summaryText) : [];
+      const summaries = [];
+      const bullets = [];
+      for (const s of suggestions) {
+        const data = s?.data ?? {};
+        const text = data.summarizationText || data.aiGeneratedSummarizationText;
+        if (!text) continue;
+        if (data.keyPoints === true) bullets.push(...extractBulletPoints(text));
+        else summaries.push(text);
+      }
       return [
-        'Update the page content - add below summary:',
-        bullets.length ? bullets.map((b) => `- ${b}`).join('\n') : (summaryText ?? ''),
+        'Update the page content - add a summary section in the beginning of the blog post:',
+        summaries.join('\n'),
+        'Add a key points section below the summary:',
+        bullets.map((b) => `- ${b}`).join('\n'),
       ].join('\n');
     }
     const lines = [
