@@ -1,0 +1,522 @@
+brand-visibility-app {
+  --ew-accent: var(--s2-blue-900);
+  --ew-accent-hover: var(--s2-blue-1000);
+
+  display: block;
+  max-width: 760px;
+  margin: 10px auto;
+  padding: 0 6px;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  font-family: var(
+    --body-font-family,
+    adobe-clean,
+    'Source Sans Pro',
+    -apple-system,
+    sans-serif
+  );
+  color: var(--s2-gray-800, #222);
+}
+
+/*
+ * sl-button hosts must NOT use nexter class names (.accent etc.):
+ * nexter buttons.css targets those and paints the host while ::part(base) paints
+ * the inner button — causing a nested double-pill. Use ew- prefixed classes instead.
+ */
+sl-button.ew-fill-accent {
+  background: transparent;
+  border: none;
+  padding: 0;
+  vertical-align: middle;
+}
+
+sl-button.ew-fill-accent::part(base) {
+  background: var(--ew-accent);
+  border-color: var(--ew-accent);
+  color: var(--s2-gray-75, #fff);
+}
+
+sl-button.ew-fill-accent::part(base):hover:not(:disabled) {
+  background: var(--ew-accent-hover);
+  border-color: var(--ew-accent-hover);
+}
+
+sl-button.ew-outline-accent {
+  background: transparent;
+  border: none;
+  padding: 0;
+  vertical-align: middle;
+}
+
+sl-button.ew-outline-accent::part(base) {
+  background: transparent;
+  border-color: var(--ew-accent);
+  color: var(--ew-accent);
+}
+
+sl-button.ew-outline-accent::part(base):hover:not(:disabled) {
+  background: var(--s2-blue-100, #eff6ff);
+  border-color: var(--ew-accent-hover);
+  color: var(--ew-accent-hover);
+}
+
+brand-visibility-app .app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: var(--spacing-200, 12px);
+}
+
+brand-visibility-app .app-header h3 {
+  margin: 0;
+}
+
+brand-visibility-app .bv-settings-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--s2-gray-300, #ccc);
+  background: #fff;
+  color: var(--s2-gray-600, #767676);
+  cursor: pointer;
+}
+
+brand-visibility-app .bv-settings-btn:hover {
+  border-color: var(--ew-accent);
+  color: var(--ew-accent);
+}
+
+brand-visibility-app .bv-settings-btn .bv-gear {
+  width: 16px;
+  height: 16px;
+}
+
+brand-visibility-app .card {
+  padding: var(--spacing-300, 16px);
+  border-radius: var(--s2-radius-200, 10px);
+  box-shadow: 0 1px 6px 0 rgb(0 0 0 / 12%);
+}
+
+brand-visibility-app .card.error {
+  background: var(--s2-red-50, #fef2f2);
+  border-color: var(--s2-red-200, #fecaca);
+}
+
+brand-visibility-app .card ul {
+  margin: 0;
+}
+
+brand-visibility-app .card ul li {
+  margin-bottom: var(--spacing-75, 6px);
+}
+
+brand-visibility-app .card {
+  margin-bottom: var(--spacing-200, 12px);
+}
+
+brand-visibility-app .card:last-of-type {
+  margin-bottom: 0;
+}
+
+/* --- Site ID setup form --- */
+brand-visibility-app .bv-setup-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+brand-visibility-app .bv-setup-row input {
+  flex: 1;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d3d1c7;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+brand-visibility-app .bv-setup-hint {
+  font-size: 12px;
+  color: var(--s2-gray-500, #999);
+  margin: 6px 0 0;
+}
+
+brand-visibility-app .opp-title {
+  font-size: var(--s2-body-m-size, 14px);
+  font-weight: 600;
+  color: var(--s2-gray-900, #1a1a1a);
+  margin: 0 0 var(--spacing-75, 6px);
+}
+
+brand-visibility-app .opp-description {
+  font-size: 14px;
+  color: var(--s2-gray-600, #767676);
+  margin: 0 0 var(--spacing-150, 10px);
+  line-height: 1.5;
+}
+
+brand-visibility-app .opp-description a {
+  color: var(--ew-accent);
+  text-decoration: none;
+}
+
+brand-visibility-app .opp-description a:hover {
+  text-decoration: underline;
+}
+
+brand-visibility-app .opp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-75, 6px);
+  margin-bottom: var(--spacing-200, 12px);
+  /* leave room for the top-right acted / dismiss buttons */
+  padding-right: 66px;
+}
+
+brand-visibility-app .opportunity-item {
+  position: relative;
+}
+
+brand-visibility-app .opp-outcome-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: flex;
+  gap: 6px;
+}
+
+brand-visibility-app .opp-outcome-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--s2-gray-300, #ccc);
+  background: #fff;
+  color: var(--s2-gray-500, #999);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+brand-visibility-app .opp-outcome-btn .bv-check,
+brand-visibility-app .opp-outcome-btn .bv-close {
+  width: 15px;
+  height: 15px;
+}
+
+brand-visibility-app .opp-outcome-btn--acted:hover {
+  border-color: var(--s2-green-600, #16a34a);
+  color: var(--s2-green-700, #15803d);
+  background: var(--s2-green-50, #f0fdf4);
+}
+
+brand-visibility-app .opp-outcome-btn--dismiss:hover {
+  border-color: var(--s2-gray-500, #999);
+  color: var(--s2-gray-800, #444);
+  background: var(--s2-gray-100, #f3f4f6);
+}
+
+brand-visibility-app .opp-expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px 0 0;
+  border: none;
+  background: transparent;
+  color: var(--s2-gray-400, #aaa);
+  cursor: pointer;
+}
+
+brand-visibility-app .opp-expand-toggle:hover {
+  color: var(--s2-gray-700, #555);
+}
+
+brand-visibility-app .opp-expand-toggle .bv-chevron {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s ease;
+}
+
+brand-visibility-app .opportunity-item.is-open .opp-expand-toggle .bv-chevron {
+  transform: rotate(180deg);
+}
+
+brand-visibility-app .drafts {
+  margin-bottom: var(--spacing-200, 12px);
+}
+
+brand-visibility-app .drafts-loading {
+  font-size: 13px;
+  color: var(--s2-gray-500, #999);
+  margin: 0 0 var(--spacing-200, 12px);
+}
+
+brand-visibility-app .draft-link {
+  font-size: 13px;
+  color: var(--ew-accent);
+  text-decoration: none;
+}
+
+brand-visibility-app .draft-link:hover {
+  text-decoration: underline;
+}
+
+brand-visibility-app .opp-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+brand-visibility-app .opp-generate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--ew-accent);
+  background: transparent;
+  border: 1px solid var(--s2-gray-300, #ccc);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+brand-visibility-app .opp-generate-btn:hover {
+  background: var(--s2-blue-100, #eff6ff);
+  border-color: var(--ew-accent);
+}
+
+brand-visibility-app .opp-generate-btn .bv-sparkle {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+brand-visibility-app .opp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-200, 12px);
+}
+
+brand-visibility-app .opp-header .opp-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+}
+
+brand-visibility-app .outcome-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: var(--spacing-300, 16px) 0 var(--spacing-75, 6px);
+}
+
+brand-visibility-app .outcome-label--acted {
+  color: var(--s2-green-700, #15803d);
+}
+
+brand-visibility-app .outcome-label--dismissed {
+  color: var(--s2-gray-500, #999);
+}
+
+brand-visibility-app .opportunity-item.opp-resolved--acted {
+  background: var(--s2-green-50, #f0fdf4);
+  border-color: var(--s2-green-300, #86efac);
+}
+
+brand-visibility-app .opportunity-item.opp-resolved--dismissed {
+  background: var(--s2-gray-75, #f3f3f3);
+  border-color: var(--s2-gray-300, #ccc);
+}
+
+brand-visibility-app .opp-mark {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+brand-visibility-app .opp-mark .bv-check,
+brand-visibility-app .opp-mark .bv-close {
+  width: 15px;
+  height: 15px;
+}
+
+brand-visibility-app .opp-mark--acted {
+  color: var(--s2-green-700, #15803d);
+}
+
+brand-visibility-app .opp-mark--dismissed {
+  color: var(--s2-gray-500, #999);
+}
+
+brand-visibility-app .opp-undo-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--s2-gray-300, #ccc);
+  background: transparent;
+  color: var(--s2-gray-600, #767676);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+brand-visibility-app .opp-undo-btn:hover {
+  border-color: var(--s2-gray-600, #767676);
+  color: var(--s2-gray-900, #1a1a1a);
+  background: var(--s2-gray-100, #f3f4f6);
+}
+
+brand-visibility-app .bv-preview-btn {
+  width: 100%;
+  margin-top: var(--spacing-150, 10px);
+}
+
+.bv-toast {
+  position: fixed;
+  bottom: var(--spacing-400, 24px);
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: var(--s2-gray-900, #1a1a1a);
+  color: #fff;
+  font-size: var(--s2-body-s-size, 13px);
+  padding: var(--spacing-150, 10px) var(--spacing-300, 16px);
+  border-radius: var(--s2-radius-200, 10px);
+  opacity: 0;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  pointer-events: none;
+  z-index: 9999;
+  white-space: nowrap;
+}
+
+.bv-toast--visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.bv-scope-banner { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #6b6a64; margin: 4px 0 8px; padding: 8px 12px; background: #f1efe8; border-radius: 6px; }
+.bv-scope-banner strong { color: #222; }
+.bv-scope-toggle { flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid #b4b2a9; background: #fff; color: #185fa5; cursor: pointer; white-space: nowrap; }
+.bv-scope-toggle:hover { background: #e6f1fb; }
+
+/* --- Brand Visibility: search / filters / sort / pills / detail --- */
+.bv-toolbar { display: flex; align-items: center; gap: 8px; margin: 8px 0 10px; }
+.bv-search { flex: 1; }
+.bv-search input { width: 100%; box-sizing: border-box; height: 34px; padding: 0 10px; border: 1px solid #d3d1c7; border-radius: 6px; font-size: 14px; }
+.bv-filter-toggle { height: 34px; padding: 0 12px; border: 1px solid #b4b2a9; border-radius: 6px; background: transparent; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.bv-filter-toggle.is-open { background: #f1efe8; }
+.bv-filter-count { background: #185fa5; color: #fff; border-radius: 999px; font-size: 11px; font-weight: 600; padding: 0 6px; }
+.bv-controls { border: 1px solid #e6e4dc; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+.bv-control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bv-control-label { font-size: 12px; color: #6b6a64; width: 64px; }
+.bv-chip { padding: 4px 11px; font-size: 12px; font-weight: 500; border-radius: 999px; border: 1px solid #d3d1c7; background: #fff; color: #5f5e5a; cursor: pointer; }
+.bv-chip.is-active { background: #e6f1fb; border-color: #85b7eb; color: #0c447c; }
+.bv-count { font-size: 12px; color: #888780; margin: 0 0 8px; }
+.opp-clickable { cursor: pointer; }
+.opp-clickable--static { cursor: default; }
+
+brand-visibility-app .bv-load-more {
+  display: block;
+  width: 100%;
+  margin: 4px 0 8px;
+  padding: 9px 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--ew-accent);
+  background: transparent;
+  border: 1px solid var(--s2-gray-300, #ccc);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+brand-visibility-app .bv-load-more:hover:not(:disabled) {
+  background: var(--s2-blue-100, #eff6ff);
+  border-color: var(--ew-accent);
+}
+
+brand-visibility-app .bv-load-more:disabled {
+  color: var(--s2-gray-500, #999);
+  cursor: default;
+}
+
+/* Tag chips — surfaces SpaceCat opportunity tags (e.g. "isElmo", "llm", "Engagement"). */
+brand-visibility-app .opp-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+brand-visibility-app .bv-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--s2-gray-200, #e0e0e0);
+  color: var(--s2-gray-700, #555);
+}
+
+brand-visibility-app .bv-tag-chip--elmo {
+  background: var(--s2-blue-100, #eff6ff);
+  border-color: #85b7eb;
+  color: #0c447c;
+}
+
+.opp-detail { border-top: 1px solid #e6e4dc; margin-top: 10px; padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.opp-detail p { margin: 0; font-size: 13px; color: #444441; line-height: 1.55; }
+.opp-detail-label { text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; color: #888780; margin-bottom: 3px !important; }
+.opp-detail ol { margin: 0; padding-left: 18px; font-size: 13px; color: #444441; line-height: 1.55; }
+.opp-detail ol li { margin-bottom: 4px; }
+.opp-data-list { margin: 0; font-size: 13px; color: #444441; }
+.opp-data-list div { display: flex; gap: 6px; }
+.opp-data-list .opp-data-key { color: #888780; }
+.opp-suggestion { margin: 4px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.opp-suggestion-title { font-size: 13px; font-weight: 600; color: #222; margin: 0; }
+.opp-suggestion-summary { font-size: 14px; color: #444441; line-height: 1.5; margin: 0; }
+.opp-stat-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.opp-stat { font-size: 13px; color: #444441; margin: 0; }
+.opp-toc-list, .opp-evidence-list { margin: 4px 0 0; padding-left: 18px; font-size: 13px; color: #444441; line-height: 1.6; }
+.opp-source { font-size: 13px; color: #185fa5; }
+.drafts-list { margin: 4px 0 8px; padding-left: 18px; }
+.bv-pill { display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; margin-right: 6px; }
+.bv-pill--status-new { background: #e6f1fb; color: #0c447c; }
+.bv-pill--status-in_progress { background: #faeeda; color: #7a4a0b; }
+.bv-pill--status-resolved { background: #eaf3de; color: #27500a; }
+.bv-pill--status-ignored { background: #f1efe8; color: #5f5e5a; }

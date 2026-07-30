@@ -1,0 +1,115 @@
+:root,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+drafts-preview-app {
+  --ew-accent: var(--s2-blue-900);
+  --ew-accent-hover: var(--s2-blue-1000);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(
+    --body-font-family,
+    adobe-clean,
+    'Source Sans Pro',
+    -apple-system,
+    sans-serif
+  );
+  -webkit-font-smoothing: antialiased;
+}
+
+.dp-empty {
+  padding: var(--spacing-400, 24px);
+  color: var(--s2-gray-500, #999);
+  font-size: var(--s2-body-s-size, 13px);
+  margin: 0;
+}
+
+.dp-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--s2-gray-200, #e0e0e0);
+  padding: 0 var(--spacing-300, 16px);
+  gap: var(--spacing-50, 4px);
+  flex-shrink: 0;
+}
+
+.dp-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--spacing-150, 10px) var(--spacing-200, 12px);
+  font-size: var(--s2-body-s-size, 13px);
+  color: var(--s2-gray-600, #767676);
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.dp-tab:hover {
+  color: var(--s2-gray-900, #1a1a1a);
+}
+
+.dp-tab--active {
+  color: var(--ew-accent);
+  border-bottom-color: var(--ew-accent);
+  font-weight: 600;
+}
+
+.dp-panels {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dp-panel {
+  display: none;
+}
+.dp-panel--active {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.dp-panel-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--spacing-300, 16px);
+  box-sizing: border-box;
+  gap: var(--spacing-200, 12px);
+}
+
+.dp-frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid var(--s2-gray-200, #e0e0e0);
+  border-radius: var(--s2-radius-100, 6px);
+  background: var(--s2-gray-50, #f9f9f9);
+}
+
+.dp-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+sl-button.ew-fill-accent {
+  background: transparent;
+  border: none;
+  padding: 0;
+  vertical-align: middle;
+}
+
+sl-button.ew-fill-accent::part(base) {
+  background: var(--ew-accent);
+  border-color: var(--ew-accent);
+  color: var(--s2-gray-75, #fff);
+}
+
+sl-button.ew-fill-accent::part(base):hover:not(:disabled) {
+  background: var(--ew-accent-hover);
+  border-color: var(--ew-accent-hover);
+}
