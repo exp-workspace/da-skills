@@ -530,8 +530,8 @@ class BrandVisibilityApp extends LitElement {
       const labels = extractTocLabels(suggestions[0]?.data?.transformRules);
       return [
         'Update the page content - add below table of contents:',
-        labels.map((l, i) => `${i + 1}. ${l}`).join('\n'),
-      ].join('\n\n');
+        ...labels.map((l, i) => `${i + 1}. ${l}`),
+      ].join('\n');
     }
     if (o.type === 'summarization') {
       const summaries = [];
@@ -545,22 +545,23 @@ class BrandVisibilityApp extends LitElement {
       }
       return [
         'Update the page content - add a summary section in the beginning of the content:',
-        summaries.join('\n\n'),
+        summaries.join('\n'),
         'Add a key points section below the summary:',
         bullets.map((b) => `- ${b}`).join('\n'),
-      ].join('\n\n');
+      ].join('\n');
     }
-    const parts = [
+    const lines = [
       `Opportunity: ${o.title}`,
       o.description ? `Description: ${o.description}` : null,
       `Type: ${typeLabel(o.type)}`,
-      o.guidanceSteps.length
-        ? `Recommended steps:\n\n${o.guidanceSteps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`
-        : null,
+      o.guidanceSteps.length ? `Recommended steps:\n${o.guidanceSteps.map((s, i) => `${i + 1}. ${s}`).join('\n')}` : null,
+    ].filter(Boolean);
+    return [
+      lines.join('\n'),
+      '',
       'Based on this brand-visibility opportunity, generate three pages that can help drive traffic or conversions on our website.',
       `Create 3 different variations of content based on the opportunity at ${DRAFTS_PREFIX}${o.id}/`,
-    ].filter(Boolean);
-    return parts.join('\n\n');
+    ].join('\n');
   }
 
   _renderWithLinks(text) {
