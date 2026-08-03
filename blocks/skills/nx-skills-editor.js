@@ -53,6 +53,9 @@ import { ensureSkillFrontmatter } from './utils/skill-frontmatter.js';
 import {
   createReadOnlyViewer, createEditor, replaceDoc, destroyEditor,
 } from './utils/codemirror-loader.js';
+import { setupEgovBridge } from './utils/egov-bridge.js';
+import { resolveEgovMfeEnv, resolveEgovPath, setEgovPath } from './utils/egov-embed.js';
+import { getToken } from './utils/da-fetch.js';
 import {
   onMessage,
   sendMessage,
@@ -273,6 +276,7 @@ class NxSkillsEditor extends LitElement {
     this._disposeCMModal();
     this._disposeMemoryCM();
     this._disposeSkillCM();
+    this._disposeEgovBridge();
   }
 
   async updated(changed) {
@@ -303,6 +307,16 @@ class NxSkillsEditor extends LitElement {
     }
     if ((changed?.has('_memory') || changed?.has('_catalogTab')) && this._catalogTab === 'memory' && this._memory) {
       this.updateComplete.then(() => this._mountMemoryCM());
+    }
+    if (changed?.has('_catalogTab') && this._catalogTab === 'context' && !this._egovBridge) {
+      this.updateComplete.then(() => this._mountEgovBridge());
+    }
+    // The `_egovBridge` check narrows this to a genuine tab exit. No bridge
+    // exists on the initial tab assignment, where clearing `?egovPath=` would
+    // wipe an incoming deep link before it is read.
+    if (changed?.has('_catalogTab') && this._catalogTab !== 'context' && this._egovBridge) {
+      this._disposeEgovBridge();
+      setEgovPath('/');
     }
     // ── Skill body CM: mount when skill form appears, dispose when it hides ──
     const skillFormVisible = this._isEditorOpen && this._catalogTab === 'skills'
@@ -711,7 +725,7 @@ class NxSkillsEditor extends LitElement {
       this._isFormDirty = true;
     } else {
       this._clearForm();
-      this._isEditorOpen = newTab === 'memory';
+      this._isEditorOpen = newTab === 'memory' || newTab === 'context';
     }
 
     this._pushTabState(newTab);
@@ -1108,6 +1122,39 @@ class NxSkillsEditor extends LitElement {
   _disposeMemoryCM() {
     destroyEditor(this._memoryCM);
     this._memoryCM = null;
+  }
+
+  async _mountEgovBridge() {
+    this._disposeEgovBridge();
+    const iframe = this.shadowRoot.querySelector('.egov-mfe-iframe');
+    if (!iframe) return;
+    let imsOrg;
+    try { imsOrg = (await window.adobeIMS?.getProfile?.())?.ownerOrg; } catch { /* anonymous session */ }
+    this._egovBridge = setupEgovBridge({
+      iframe,
+      getProps: () => ({
+        path: resolveEgovPath(),
+        env: resolveEgovMfeEnv(),
+        imsToken: getToken(),
+        imsOrg,
+      }),
+      // The MFE says whether each navigation deserves its own history entry.
+      // We ignore that and always replace, so Back never lands inside this tab.
+      // Adding entries first needs a popstate listener that feeds the path back
+      // into the MFE. Without one, Back would change the URL while the iframe
+      // kept showing the same screen.
+      onNavigate: (path) => setEgovPath(path),
+    });
+  }
+
+  /**
+   * Tears down the bridge only. Clearing `?egovPath=` is the caller's job (see
+   * `updated`), since this also runs defensively from `_mountEgovBridge`, which
+   * is about to read that param.
+   */
+  _disposeEgovBridge() {
+    this._egovBridge?.destroy();
+    this._egovBridge = null;
   }
 
   async _mountSkillCM() {
