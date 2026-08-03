@@ -28,13 +28,14 @@ export function resolveEgovEnv(location = window.location) {
 
 export function resolveEgovEmbedUrl(location = window.location) {
   const env = resolveEgovEnv(location);
-  return EGOV_MFE.EMBED_URLS[env] || EGOV_MFE.EMBED_URLS.stage;
+  return EGOV_MFE.EMBED_URLS[env] || EGOV_MFE.EMBED_URLS.prod;
 }
 
 /**
  * Host env → the MFE's own `Env` union (see its src/types/env.ts), which picks
  * the backend API host. The MFE does no case normalization: anything outside
- * this exact uppercase set silently falls back to its STAGE API.
+ * this exact uppercase set silently falls back to its own STAGE API, which is
+ * why we always send an explicit value.
  *
  * `local` maps to STAGE, not DEV, because `?egov=local` means "serve the MFE
  * *bundle* from a local dev server", not "use a local backend". DEV would
@@ -50,10 +51,11 @@ const EGOV_MFE_ENVS = {
 
 /**
  * Resolves the `env` value to hand the MFE, so it targets the backend matching
- * the bundle we embedded. Falls back to STAGE, as the MFE itself does.
+ * the bundle we embedded. Falls back to PROD to match `resolveEgovEnv`: an
+ * unrecognized env should not quietly serve stage data to a production user.
  */
 export function resolveEgovMfeEnv(location = window.location) {
-  return EGOV_MFE_ENVS[resolveEgovEnv(location)] || 'STAGE';
+  return EGOV_MFE_ENVS[resolveEgovEnv(location)] || 'PROD';
 }
 
 /**

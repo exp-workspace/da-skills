@@ -135,7 +135,7 @@ export function setupEgovBridge({ iframe, getProps, onNavigate }) {
   }
 
   function sendProps() {
-    const { path = '/', env = 'STAGE', imsToken, imsOrg } = getProps() || {};
+    const { path = '/', env = 'PROD', imsToken, imsOrg } = getProps() || {};
     // `metrics` is deliberately absent: it isn't an MFE app prop but a
     // bridge-level field rpcBridge derives from window.adobeMetrics on the
     // sender side. Omitting it makes the guest skip MetricsWrapper.init;
