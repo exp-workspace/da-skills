@@ -114,6 +114,7 @@ const STATUS_LABELS = {
   IN_PROGRESS: 'In progress',
   RESOLVED: 'Resolved',
   IGNORED: 'Ignored',
+  FIXED: 'Fixed',
 };
 const statusLabel = (s) => STATUS_LABELS[s] || s;
 const statusKey = (s) => String(s || '').toLowerCase();
@@ -472,7 +473,7 @@ class BrandVisibilityApp extends LitElement {
     }
   }
 
-  // Opportunities are generic (site-wide); a NEW suggestion's URL is the only
+  // Opportunities are generic (site-wide); a suggestion's URL is the only
   // thing that ties an opportunity to a specific page. Only worth the extra API
   // calls when we actually know which page is open (see _pagePath in _init()).
   _checkFetchSuggestions() {
@@ -486,15 +487,17 @@ class BrandVisibilityApp extends LitElement {
 
   async _fetchOpportunitySuggestions(oppId) {
     try {
+      // Fetch all suggestions (not just NEW) so already-FIXED ones still show —
+      // as read-only history rather than disappearing once acted on.
       const resp = await fetch(
-        `${this._apiBase}/sites/${this._siteId}/opportunities/${oppId}/suggestions/by-status/NEW`,
+        `${this._apiBase}/sites/${this._siteId}/opportunities/${oppId}/suggestions`,
         { headers: { Authorization: `Bearer ${this._token}` } },
       );
       if (!resp.ok) return;
       const data = await resp.json();
       const matches = (Array.isArray(data) ? data : [])
-        .filter((s) => toPagePath(extractSuggestionUrl(s.data)) === this._pagePath)
-        .map((s) => ({ id: s.id, data: s.data ?? {} }));
+        .filter((s) => (s.status === 'NEW' || s.status === 'FIXED') && toPagePath(extractSuggestionUrl(s.data)) === this._pagePath)
+        .map((s) => ({ id: s.id, data: s.data ?? {}, status: s.status }));
       if (matches.length) this._matchingSuggestions = { ...this._matchingSuggestions, [oppId]: matches };
     } catch {
       /* leave unmatched — a single opportunity's suggestions failing shouldn't break the page-scope view */
@@ -804,6 +807,18 @@ class BrandVisibilityApp extends LitElement {
     // instead of the generic, site-wide opportunity description.
     const suggestions = this._scope === 'page' ? (this._matchingSuggestions[o.id] ?? []) : [];
     const showSuggestions = suggestions.length > 0;
+    // FIXED suggestions are shown for context but can't be re-applied — only
+    // NEW ones feed the "Apply suggestion" prompt.
+    const actionableSuggestions = suggestions.filter((s) => s.status !== 'FIXED');
+    // toc/summarization prompts are built entirely from suggestion data, so if
+    // every match is already FIXED there's nothing left to apply.
+    const needsSuggestionData = o.type === 'toc' || o.type === 'summarization';
+    const hideApply = needsSuggestionData && showSuggestions && actionableSuggestions.length === 0;
+    // The opportunity's own status field doesn't always get flipped to RESOLVED
+    // once every one of its suggestions for this page is FIXED — show it as
+    // resolved locally rather than the stale "New" from the API.
+    const allFixed = showSuggestions && actionableSuggestions.length === 0;
+    const displayStatus = allFixed ? 'FIXED' : o.status;
     // The all-opportunities view is a generic, site-wide list — there's no
     // suggestion/page context to drill into, so it's just title + description,
     // no expand affordance.
@@ -841,7 +856,7 @@ class BrandVisibilityApp extends LitElement {
           @click=${canExpand ? () => this._toggleExpanded(o.id) : nothing}
         >
           <div class="opp-meta">
-            ${this._pill(statusLabel(o.status), `status-${statusKey(o.status)}`)}
+            ${this._pill(statusLabel(displayStatus), `status-${statusKey(displayStatus)}`)}
           </div>
           <p class="opp-title">${o.title}</p>
           ${o.tags.length
@@ -857,7 +872,12 @@ class BrandVisibilityApp extends LitElement {
                 ${showSuggestions
                   ? html`
                       ${SUGGESTION_INTROS[o.type] ? html`<p class="opp-suggestion-summary">${SUGGESTION_INTROS[o.type]}</p>` : nothing}
-                      ${suggestions.map((s) => renderSuggestionData(o.type, s.data))}
+                      ${suggestions.map((s) => html`
+                        <div class="opp-suggestion-wrap ${s.status === 'FIXED' ? 'opp-suggestion-wrap--fixed' : ''}">
+                          ${s.status === 'FIXED' ? html`<span class="bv-pill bv-pill--status-fixed">Fixed</span>` : nothing}
+                          ${renderSuggestionData(o.type, s.data)}
+                        </div>
+                      `)}
                     `
                   : html`
                       <div><p class="opp-detail-label">Type</p><p>${typeLabel(o.type)}</p></div>
@@ -877,7 +897,7 @@ class BrandVisibilityApp extends LitElement {
                         : nothing}
                     `}
                 ${this._renderDrafts(o.id)}
-                <div class="opp-actions">${this._renderGenerateButton(o, suggestions)}</div>
+                <div class="opp-actions">${hideApply ? nothing : this._renderGenerateButton(o, actionableSuggestions)}</div>
               </div>
             `
           : nothing}

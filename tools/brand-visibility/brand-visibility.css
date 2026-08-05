@@ -470,3 +470,6 @@ brand-visibility-app .bv-tag-chip--elmo {
 .bv-pill--status-in_progress { background: #faeeda; color: #7a4a0b; }
 .bv-pill--status-resolved { background: #eaf3de; color: #27500a; }
 .bv-pill--status-ignored { background: #f1efe8; color: #5f5e5a; }
+.bv-pill--status-fixed { background: #eaf3de; color: #27500a; }
+.opp-suggestion-wrap--fixed { opacity: 0.6; }
+.opp-suggestion-wrap--fixed .opp-suggestion { filter: grayscale(0.3); }
