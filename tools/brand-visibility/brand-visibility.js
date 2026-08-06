@@ -83,27 +83,11 @@ const sparkleIcon = () => html`
   </svg>
 `;
 
-// Plain checkmark for the "mark done" affordance.
-const checkIcon = () => html`
-  <svg class="bv-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M5 13l4 4L19 7" />
-  </svg>
-`;
-
 // Down chevron for the expand/collapse affordance (rotates 180° when open).
 const chevronIcon = () => html`
   <svg class="bv-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M6 9l6 6 6-6" />
-  </svg>
-`;
-
-// Cross for the "dismiss / not relevant" affordance.
-const closeIcon = () => html`
-  <svg class="bv-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M6 6l12 12M18 6L6 18" />
   </svg>
 `;
 
@@ -300,7 +284,6 @@ class BrandVisibilityApp extends LitElement {
     _loading: { state: true },
     _error: { state: true },
     _drafts: { state: true },
-    _outcomes: { state: true },
     _status: { state: true },
     _sort: { state: true },
     _q: { state: true },
@@ -321,7 +304,6 @@ class BrandVisibilityApp extends LitElement {
     this._loading = false;
     this._error = null;
     this._drafts = {};
-    this._outcomes = {}; // { [oppId]: 'acted' | 'dismissed' } — local annotation only, not synced back to SpaceCat.
     this._status = 'all';
     this._sort = 'recent';
     this._q = '';
@@ -373,13 +355,6 @@ class BrandVisibilityApp extends LitElement {
     const params = new URLSearchParams(window.location.search);
     const apiOverride = params.get('llmo-api');
     if (apiOverride) this._apiBase = apiOverride.replace(/\/$/, '');
-
-    try {
-      const stored = sessionStorage.getItem('bv-outcomes');
-      if (stored) this._outcomes = JSON.parse(stored) || {};
-    } catch {
-      /* ignore */
-    }
 
     // Dev-only escape hatch: outside the EW iframe (e.g. running this tool's html
     // directly against a local static server, per the repo README's "isolated
@@ -593,33 +568,6 @@ class BrandVisibilityApp extends LitElement {
     }, 2500);
   }
 
-  // Record the user's outcome for an opportunity ('acted' | 'dismissed'). This is a
-  // local annotation only (sessionStorage) — it does NOT PATCH the opportunity's
-  // status back to SpaceCat, so it never mutates shared org data.
-  // Clicking the same outcome again clears it (toggle off).
-  _setOutcome(oppId, outcome) {
-    const next = { ...this._outcomes };
-    if (next[oppId] === outcome) delete next[oppId];
-    else next[oppId] = outcome;
-    this._outcomes = next;
-    this._persistOutcomes();
-  }
-
-  _clearOutcome(oppId) {
-    const next = { ...this._outcomes };
-    delete next[oppId];
-    this._outcomes = next;
-    this._persistOutcomes();
-  }
-
-  _persistOutcomes() {
-    try {
-      sessionStorage.setItem('bv-outcomes', JSON.stringify(this._outcomes));
-    } catch {
-      /* ignore */
-    }
-  }
-
   _toggleExpanded(oppId) {
     const next = new Set(this._expanded);
     if (next.has(oppId)) next.delete(oppId);
@@ -702,7 +650,6 @@ class BrandVisibilityApp extends LitElement {
   _visibleOpportunities() {
     const q = this._q.trim().toLowerCase();
     let rows = this._opportunities
-      .filter((o) => !this._outcomes[o.id])
       .filter((o) => this._scope === 'all' || (this._matchingSuggestions[o.id]?.length ?? 0) > 0)
       .filter((o) => this._status === 'all' || statusKey(o.status) === this._status)
       .filter((o) => !q || `${o.title} ${o.description} ${o.type} ${o.tags.join(' ')}`.toLowerCase().includes(q));
@@ -825,32 +772,6 @@ class BrandVisibilityApp extends LitElement {
     const canExpand = this._scope === 'page';
     return html`
       <div class="card opportunity-item ${open && canExpand ? 'is-open' : ''}">
-        <div class="opp-outcome-actions">
-          <button
-            type="button"
-            class="opp-outcome-btn opp-outcome-btn--acted"
-            title="Acted — I took action on this"
-            aria-label="Mark as acted"
-            @click=${(e) => {
-              e.stopPropagation();
-              this._setOutcome(o.id, 'acted');
-            }}
-          >
-            ${checkIcon()}
-          </button>
-          <button
-            type="button"
-            class="opp-outcome-btn opp-outcome-btn--dismiss"
-            title="Dismiss — not relevant"
-            aria-label="Dismiss"
-            @click=${(e) => {
-              e.stopPropagation();
-              this._setOutcome(o.id, 'dismissed');
-            }}
-          >
-            ${closeIcon()}
-          </button>
-        </div>
         <div
           class="opp-clickable ${canExpand ? '' : 'opp-clickable--static'}"
           @click=${canExpand ? () => this._toggleExpanded(o.id) : nothing}
@@ -943,8 +864,6 @@ class BrandVisibilityApp extends LitElement {
     }
     const rows = this._visibleOpportunities();
     const shown = rows.slice(0, this._visibleCount);
-    const acted = this._opportunities.filter((o) => this._outcomes[o.id] === 'acted');
-    const dismissed = this._opportunities.filter((o) => this._outcomes[o.id] === 'dismissed');
     const moreToLoad = rows.length > shown.length;
     return html`
       ${this._renderPageScopeBanner()}
@@ -969,28 +888,7 @@ class BrandVisibilityApp extends LitElement {
             Load more (${rows.length - shown.length} more)
           </button>`
         : nothing}
-      ${acted.length
-        ? html`<p class="outcome-label outcome-label--acted">Acted</p>
-            ${acted.map((o) => this._renderResolvedCard(o, 'acted'))}`
-        : nothing}
-      ${dismissed.length
-        ? html`<p class="outcome-label outcome-label--dismissed">Dismissed</p>
-            ${dismissed.map((o) => this._renderResolvedCard(o, 'dismissed'))}`
-        : nothing}
     `;
-  }
-
-  _renderResolvedCard(o, kind) {
-    const cardClass = kind === 'acted' ? 'opp-resolved--acted' : 'opp-resolved--dismissed';
-    return html`
-      <div class="card opportunity-item opp-resolved ${cardClass}">
-        <div class="opp-header">
-          <p class="opp-title">
-            <span class="opp-mark opp-mark--${kind}">${kind === 'acted' ? checkIcon() : closeIcon()}</span>${o.title}
-          </p>
-          <button class="opp-undo-btn" @click=${() => this._clearOutcome(o.id)}>Undo</button>
-        </div>
-      </div>`;
   }
 
   render() {

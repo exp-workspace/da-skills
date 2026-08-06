@@ -126,57 +126,10 @@ brand-visibility-app .opp-meta {
   flex-wrap: wrap;
   gap: var(--spacing-75, 6px);
   margin-bottom: var(--spacing-200, 12px);
-  /* leave room for the top-right acted / dismiss buttons */
-  padding-right: 66px;
 }
 
 brand-visibility-app .opportunity-item {
   position: relative;
-}
-
-brand-visibility-app .opp-outcome-actions {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 1;
-  display: flex;
-  gap: 6px;
-}
-
-brand-visibility-app .opp-outcome-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--s2-gray-300, #ccc);
-  background: #fff;
-  color: var(--s2-gray-500, #999);
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
-}
-
-brand-visibility-app .opp-outcome-btn .bv-check,
-brand-visibility-app .opp-outcome-btn .bv-close {
-  width: 15px;
-  height: 15px;
-}
-
-brand-visibility-app .opp-outcome-btn--acted:hover {
-  border-color: var(--s2-green-600, #16a34a);
-  color: var(--s2-green-700, #15803d);
-  background: var(--s2-green-50, #f0fdf4);
-}
-
-brand-visibility-app .opp-outcome-btn--dismiss:hover {
-  border-color: var(--s2-gray-500, #999);
-  color: var(--s2-gray-800, #444);
-  background: var(--s2-gray-100, #f3f4f6);
 }
 
 brand-visibility-app .opp-expand-toggle {
@@ -260,90 +213,6 @@ brand-visibility-app .opp-generate-btn .bv-sparkle {
   width: 15px;
   height: 15px;
   flex-shrink: 0;
-}
-
-brand-visibility-app .opp-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-200, 12px);
-}
-
-brand-visibility-app .opp-header .opp-title {
-  margin: 0;
-  flex: 1;
-  min-width: 0;
-  font-size: 16px;
-}
-
-brand-visibility-app .outcome-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: var(--spacing-300, 16px) 0 var(--spacing-75, 6px);
-}
-
-brand-visibility-app .outcome-label--acted {
-  color: var(--s2-green-700, #15803d);
-}
-
-brand-visibility-app .outcome-label--dismissed {
-  color: var(--s2-gray-500, #999);
-}
-
-brand-visibility-app .opportunity-item.opp-resolved--acted {
-  background: var(--s2-green-50, #f0fdf4);
-  border-color: var(--s2-green-300, #86efac);
-}
-
-brand-visibility-app .opportunity-item.opp-resolved--dismissed {
-  background: var(--s2-gray-75, #f3f3f3);
-  border-color: var(--s2-gray-300, #ccc);
-}
-
-brand-visibility-app .opp-mark {
-  display: inline-flex;
-  vertical-align: middle;
-  margin-right: 6px;
-}
-
-brand-visibility-app .opp-mark .bv-check,
-brand-visibility-app .opp-mark .bv-close {
-  width: 15px;
-  height: 15px;
-}
-
-brand-visibility-app .opp-mark--acted {
-  color: var(--s2-green-700, #15803d);
-}
-
-brand-visibility-app .opp-mark--dismissed {
-  color: var(--s2-gray-500, #999);
-}
-
-brand-visibility-app .opp-undo-btn {
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: inherit;
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--s2-gray-300, #ccc);
-  background: transparent;
-  color: var(--s2-gray-600, #767676);
-  cursor: pointer;
-  white-space: nowrap;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
-}
-
-brand-visibility-app .opp-undo-btn:hover {
-  border-color: var(--s2-gray-600, #767676);
-  color: var(--s2-gray-900, #1a1a1a);
-  background: var(--s2-gray-100, #f3f4f6);
 }
 
 brand-visibility-app .bv-preview-btn {
