@@ -544,8 +544,8 @@ class NerveCenterApp extends LitElement {
         </div>
         <div class="obs-clickable" @click=${() => this._toggleExpanded(o.id)}>
           <div class="obs-meta">
-            ${o.tier ? this._pill(`${o.severity} · ${o.tier}`, `tier-${o.tier.toLowerCase()}`) : nothing}
             ${o.recommendation ? this._pill(o.recommendation[0].toUpperCase() + o.recommendation.slice(1), `rec-${o.recommendation}`) : nothing}
+            ${o.tier ? this._pill(o.tier, `tier-${o.tier.toLowerCase()}`) : nothing}
             ${o.impact ? this._pill(o.impact[0].toUpperCase() + o.impact.slice(1), `impact-${o.impact}`) : nothing}
           </div>
           ${o.brandName ? html`<p class="obs-brand">${o.brandName}</p>` : nothing}
