@@ -364,12 +364,17 @@ class BrandVisibilityApp extends LitElement {
     const tokenOverride = params.get('token');
     const siteIdOverride = params.get('site-id');
     const pagePathOverride = params.get('page-path');
-    if (tokenOverride) {
-      this._token = tokenOverride;
-    } else {
+    // ?token= is only meant to bypass DA_SDK when it's unreachable (running this
+    // tool's html standalone against a local static server, outside any EW
+    // iframe) — DA_SDK never resolves there since it's just waiting on a
+    // postMessage from a host that isn't there. Inside a real EW iframe, DA_SDK
+    // *does* resolve, so it still needs to run (for org/site/actions/pagePath)
+    // even if ?token= is also set to swap in a different token.
+    const inIframe = window.self !== window.top;
+    if (inIframe) {
       try {
         const sdk = await DA_SDK;
-        this._token = sdk.token;
+        this._token = tokenOverride || sdk.token;
         this._actions = sdk.actions;
         this._org = sdk.project?.org;
         this._site = sdk.project?.repo;
@@ -383,8 +388,10 @@ class BrandVisibilityApp extends LitElement {
         // eslint-disable-next-line no-console
         console.debug('[brand-visibility] DA_SDK payload', sdk, '-> detected page path:', this._pagePath);
       } catch {
-        // SDK unavailable in standalone/dev
+        if (tokenOverride) this._token = tokenOverride;
       }
+    } else if (tokenOverride) {
+      this._token = tokenOverride;
     }
     if (pagePathOverride) this._pagePath = toPagePath(pagePathOverride);
 
