@@ -140,12 +140,26 @@ export function setupEgovBridge({ iframe, getProps, onNavigate }) {
     // bridge-level field rpcBridge derives from window.adobeMetrics on the
     // sender side. Omitting it makes the guest skip MetricsWrapper.init;
     // sending `{}` would only feed it a bogus id.
+    //
+    // `colorScheme: 'light'` is not a guess — it matches the host, which pins
+    // itself to light in skills.html (`:root { color-scheme: light }`) until the
+    // editor's dark mode is finished. The two must be un-pinned together: drop
+    // that rule without forwarding the real scheme here and the frame stays
+    // light inside a dark panel. Forwarding it needs a `prefers-color-scheme`
+    // listener plus a props resend when it flips.
+    //
+    // `en-US` likewise matches what the editor ships today (no i18n).
     const simple = {
       path, env, optIn: false, colorScheme: 'light', locale: 'en-US', featureFlags: [],
     };
     if (imsToken) simple.imsToken = imsToken;
     if (imsOrg) simple.imsOrg = imsOrg;
-    return invoke('reactSetProps', [{ simple, callbacks: ['onNavigate', 'onToast'] }]);
+    // Only callbacks `reactCallback` actually handles are advertised. Listing
+    // one we ignore is a contract we don't keep: the MFE may suppress its own
+    // in-frame UI for an event it believes the host renders, so a dropped toast
+    // becomes silence rather than a fallback. Add the name here and a branch in
+    // `reactCallback` together, never one without the other.
+    return invoke('reactSetProps', [{ simple, callbacks: ['onNavigate'] }]);
   }
 
   function markConnected() {

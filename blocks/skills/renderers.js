@@ -1328,6 +1328,7 @@ export function renderMemoryContent(vm) {
 export function renderContextContent(_vm) {
   return html`
     <iframe class="egov-mfe-iframe" title="Experience Governance"
+      allow="clipboard-write *"
       src=${resolveEgovEmbedUrl()}></iframe>
   `;
 }

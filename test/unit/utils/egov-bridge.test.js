@@ -93,7 +93,9 @@ describe('setupEgovBridge', () => {
     expect(simple.env).to.equal('QA');
     expect(simple.imsToken).to.equal('t');
     expect(simple.imsOrg).to.equal('org@AdobeOrg');
-    expect(callbacks).to.deep.equal(['onNavigate', 'onToast']);
+    // Only what `reactCallback` actually handles: advertising a callback the
+    // host ignores can make the MFE suppress its own in-frame UI for it.
+    expect(callbacks).to.deep.equal(['onNavigate']);
   });
 
   it('reports the MFE\'s navigation through onNavigate', async () => {
@@ -126,6 +128,37 @@ describe('setupEgovBridge', () => {
     await settle();
 
     expect(connectRequests(iframe).length).to.equal(atDestroy);
+  });
+
+  it('drops messages from an origin other than the iframe\'s', async () => {
+    // The pinned-origin check is what keeps the IMS token in. A document that
+    // isn't the embed must not be able to answer the handshake and draw the
+    // props payload out of the host, nor steer it with a faked navigation.
+    // Here the frame is pinned to experience.adobe.com while the messages come
+    // from the test page's own origin, so every one of them must be ignored.
+    const iframe = { ...stubIframe(), src: 'https://experience.adobe.com/embed.html' };
+    const navigated = [];
+    bridge = setupEgovBridge({
+      iframe,
+      getProps: () => ({ imsToken: 'secret-token' }),
+      onNavigate: (path) => navigated.push(path),
+    });
+
+    respondTo(connectRequests(iframe)[0], { internal: '1.0.0', consumer: '1.1' });
+    realPostMessage({
+      type: 'invokeRequest',
+      channelId: CHANNEL,
+      fnName: 'reactCallback',
+      params: [{ callbackName: 'onNavigate', args: ['/brands/evil'] }],
+      id: 'spoof-1',
+      protocol: PROTOCOL,
+      version: '1.0.0',
+    }, window.location.origin);
+    await settle();
+
+    expect(navigated).to.be.empty;
+    expect(propsRequests(iframe)).to.be.empty;
+    expect(JSON.stringify(iframe.posted)).to.not.contain('secret-token');
   });
 
   it('is inert when the iframe src has no usable origin', () => {

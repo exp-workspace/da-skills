@@ -5,7 +5,7 @@ const TAB_PROMPTS = 'prompts';
 const TAB_MCPS = 'mcps';
 const TAB_MARKETPLACE = 'marketplace';
 const TAB_MEMORY = 'memory';
-const TAB_CONTEXT = 'context'; // UI label: "Context"; embeds the Experience Governance MFE
+const TAB_CONTEXT = 'context'; // UI label: "Enterprise Context"; embeds the Experience Governance MFE
 
 /** Per-tab metadata rendered by the catalog tab strip. */
 const CATALOG_TABS = [

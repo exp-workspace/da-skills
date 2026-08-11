@@ -12,13 +12,17 @@
 
 import { EGOV_MFE } from '../constants.js';
 
+/** Host URL params this module owns: the env override and the deep-link path. */
+const EGOV_ENV_PARAM = 'egov';
+const EGOV_PATH_PARAM = 'egovPath';
+
 const SAFE_EGOV_PARAM = /^(local|qa|stage|prod)$/;
 
 /** Governance-relative deep-link path (see the MFE's useGovernancePath), e.g. `/brands/123/knowledge/connectors`. */
 const SAFE_EGOV_PATH = /^\/[a-zA-Z0-9\-_/%.]*$/;
 
 export function resolveEgovEnv(location = window.location) {
-  const override = new URLSearchParams(location.search).get('egov');
+  const override = new URLSearchParams(location.search).get(EGOV_ENV_PARAM);
   if (override && SAFE_EGOV_PARAM.test(override)) return override;
 
   const { hostname } = location;
@@ -64,7 +68,7 @@ export function resolveEgovMfeEnv(location = window.location) {
  * list) if absent or malformed.
  */
 export function resolveEgovPath(location = window.location) {
-  const raw = new URLSearchParams(location.search).get('egovPath');
+  const raw = new URLSearchParams(location.search).get(EGOV_PATH_PARAM);
   return raw && SAFE_EGOV_PATH.test(raw) ? raw : '/';
 }
 
@@ -88,10 +92,10 @@ export function setEgovPath(path, {
   if (!path || !SAFE_EGOV_PATH.test(path)) return;
   const url = new URL(location.href);
   const params = new URLSearchParams(url.search);
-  params.delete('egovPath');
+  params.delete(EGOV_PATH_PARAM);
   const query = params.toString();
   const encodedPath = encodeURIComponent(path).replace(/%2F/g, '/');
-  const egovPathParam = path === '/' ? '' : `egovPath=${encodedPath}`;
+  const egovPathParam = path === '/' ? '' : `${EGOV_PATH_PARAM}=${encodedPath}`;
   url.search = [query, egovPathParam].filter(Boolean).join('&');
   history.replaceState(history.state, '', url);
 }
