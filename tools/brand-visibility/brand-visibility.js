@@ -899,12 +899,7 @@ class BrandVisibilityApp extends LitElement {
   }
 
   render() {
-    return html`
-      <div class="app-header">
-        <h3>Adobe Brand Visibility</h3>
-      </div>
-      ${this._renderContent()}
-    `;
+    return html`${this._renderContent()}`;
   }
 }
 

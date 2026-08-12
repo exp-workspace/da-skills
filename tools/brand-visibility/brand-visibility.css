@@ -60,17 +60,6 @@ sl-button.ew-outline-accent::part(base):hover:not(:disabled) {
   color: var(--ew-accent-hover);
 }
 
-brand-visibility-app .app-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: var(--spacing-200, 12px);
-}
-
-brand-visibility-app .app-header h3 {
-  margin: 0;
-}
-
 brand-visibility-app .card {
   padding: var(--spacing-300, 16px);
   border-radius: var(--s2-radius-200, 10px);
