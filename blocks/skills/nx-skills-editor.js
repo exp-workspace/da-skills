@@ -125,6 +125,7 @@ class NxSkillsEditor extends LitElement {
     _gateSite: { state: true },
     _canWrite: { state: true },
     _confirmDialog: { state: true },
+    _configError: { state: true },
     chatImportUrl: { type: String, attribute: 'chat-import-url' },
     chatAgentId: { type: String, attribute: 'chat-agent-id' },
   };
@@ -167,6 +168,7 @@ class NxSkillsEditor extends LitElement {
     this._hash = new HashController(this);
     this._isLoading = true;
     this._refreshingCount = 0;
+    this._configError = null;
     this._catalogTab = 'skills';
     this._catalogFilter = 'all';
     this._skills = {};
@@ -522,18 +524,29 @@ class NxSkillsEditor extends LitElement {
         this._canWriteKey = permKey;
         this._canWrite = hasWritePermission;
       }
-      this._skills = skillsResult.map;
-      this._skillStatuses = skillsResult.statuses;
-      this._prompts = configResult.json?.prompts?.data || [];
-      this._agentRows = configResult.agentRows || [];
-      this._mcpRows = configResult.mcpRows || [];
-      this._configuredMcpServers = configResult.configuredMcpServers || {};
-      this._configuredMcpServerHeaders = configResult.configuredMcpServerHeaders || {};
-      this._toolOverrides = configResult.toolOverrides || {};
-      this._saveDataSnapshot();
 
-      this._applySuggestion();
-      this._scheduleOrphanSkillSync();
+      this._configError = configResult.ok ? null : {
+        status: configResult.status,
+        message: configResult.status === 401 || configResult.status === 403
+          ? "You don't have access to this organization or site."
+          : 'Could not load configuration for this organization or site.',
+      };
+
+      // On failure, keep whatever was previously loaded instead of collapsing it to empty.
+      if (configResult.ok) {
+        this._skills = skillsResult.map;
+        this._skillStatuses = skillsResult.statuses;
+        this._prompts = configResult.json?.prompts?.data || [];
+        this._agentRows = configResult.agentRows || [];
+        this._mcpRows = configResult.mcpRows || [];
+        this._configuredMcpServers = configResult.configuredMcpServers || {};
+        this._configuredMcpServerHeaders = configResult.configuredMcpServerHeaders || {};
+        this._toolOverrides = configResult.toolOverrides || {};
+        this._saveDataSnapshot();
+
+        this._applySuggestion();
+        this._scheduleOrphanSkillSync();
+      }
     } finally {
       if (!silent) this._isLoading = false;
       if (showRefreshIndicator) this._refreshingCount = Math.max(0, this._refreshingCount - 1);
@@ -1772,6 +1785,21 @@ class NxSkillsEditor extends LitElement {
     }
     if (this._isLoading) {
       return html`<div class="loading" aria-live="polite">Loading capabilities\u2026</div>`;
+    }
+    if (this._configError) {
+      return html`
+        <div class="gate">
+          <div class="inline-alert inline-alert-negative" role="alert">
+            <div class="inline-alert-header">
+              <h2 class="inline-alert-title">Can't load this site</h2>
+              <svg class="inline-alert-icon" viewBox="0 0 20 20" aria-hidden="true">
+                <use href="/img/icons/s2-icon-alerttriangle-20-n.svg#icon"></use>
+              </svg>
+            </div>
+            <p class="inline-alert-content">${this._configError.message}</p>
+          </div>
+        </div>
+      `;
     }
     const rootCls = [
       'root',

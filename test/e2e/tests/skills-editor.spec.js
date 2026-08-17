@@ -1529,3 +1529,24 @@ test.describe('Catalog navigation', () => {
     await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
   });
 });
+
+// ─── Error handling ─────────────────────────────────────────────────────────
+
+test.describe('Config load errors', () => {
+  test('Shows an error screen when the org/site config fetch is unauthorized', async ({ page }) => {
+    test.setTimeout(30000);
+    await page.route(`**/config/${TEST_ORG}/${TEST_SITE}/`, async (route) => {
+      if (route.request().method() !== 'GET') { await route.fallback(); return; }
+      await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+    });
+
+    await page.goto(getSkillsLabURL(TEST_ORG, TEST_SITE));
+    await waitForReady(page);
+
+    await expect(page.getByRole('heading', { name: "Can't load this site" })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("don't have access")).toBeVisible();
+
+    // The catalog is not rendered behind the error screen.
+    await expect(page.getByRole('region', { name: 'Catalog' })).not.toBeAttached();
+  });
+});
