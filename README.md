@@ -47,10 +47,10 @@ To develop locally, run three servers:
 cd ~/Projects/DA/da-live && aem up
 
 # 2. da-nx (port 6456)
-cd ~/Projects/DA/da-nx && npm start
+cd ~/Projects/DA/da-nx && npm run local
 
 # 3. ew-extensions (port 3001)
-cd ~/Projects/DA/da-skills && aem up
+cd ~/Projects/DA/da-skills && aem up --port 3001
 ```
 
 Then navigate to:
