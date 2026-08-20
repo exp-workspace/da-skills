@@ -354,7 +354,7 @@ class EwSetupApp extends LitElement {
   }
 
   _renderStep2() {
-    const editUrlPattern = 'https://da.live/#/{{org}}/{{site}}{{pathname}}';
+    const editUrlPattern = 'https://da.live/canvas#/{{org}}/{{site}}{{pathname}}';
 
     if (this._sidekickStatus === 'loading') {
       return html`

@@ -26,7 +26,7 @@ export function buildConfigWithEwEnabled(existingJson) {
   return result;
 }
 
-const SIDEKICK_EDIT_URL = 'https://da.live/#/{{org}}/{{site}}{{pathname}}';
+const SIDEKICK_EDIT_URL = 'https://da.live/canvas#/{{org}}/{{site}}{{pathname}}';
 
 export function hasCorrectSidekickConfig(json) {
   return json?.editUrlPattern === SIDEKICK_EDIT_URL;

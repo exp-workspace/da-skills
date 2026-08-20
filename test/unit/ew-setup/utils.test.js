@@ -99,7 +99,7 @@ describe('buildConfigWithEwEnabled', () => {
 });
 
 describe('hasCorrectSidekickConfig', () => {
-  const PATTERN = 'https://da.live/#/{{org}}/{{site}}{{pathname}}';
+  const PATTERN = 'https://da.live/canvas#/{{org}}/{{site}}{{pathname}}';
   it('returns true when editUrlPattern matches', () => {
     expect(hasCorrectSidekickConfig({ editUrlPattern: PATTERN })).to.be.true;
   });
@@ -115,7 +115,7 @@ describe('hasCorrectSidekickConfig', () => {
 });
 
 describe('buildUpdatedSidekickConfig', () => {
-  const PATTERN = 'https://da.live/#/{{org}}/{{site}}{{pathname}}';
+  const PATTERN = 'https://da.live/canvas#/{{org}}/{{site}}{{pathname}}';
   it('creates bare minimum config when existingJson is null', () => {
     const result = buildUpdatedSidekickConfig(null);
     expect(result).to.deep.equal({ project: 'Experience Workspace Project', editUrlPattern: PATTERN });
