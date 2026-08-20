@@ -165,6 +165,22 @@
   overflow: hidden;
 }
 
+/* Context tab: fill the panel with the embedded governance MFE */
+.editor-body-context {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.egov-mfe-iframe {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+}
+
 .editor-footer {
   position: sticky;
   bottom: 0;
